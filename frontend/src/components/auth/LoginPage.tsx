@@ -60,7 +60,7 @@ export const LoginPage: React.FC = () => {
           <form onSubmit={handleSubmit} className="space-y-6">
             {!isLogin && (
               <div>
-                <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="name\" className="block text-sm font-medium text-gray-700 mb-2">
                   Full Name
                 </label>
                 <div className="relative">
@@ -136,7 +136,7 @@ export const LoginPage: React.FC = () => {
               className="w-full bg-gradient-primary text-white py-3 px-4 rounded-xl font-medium hover:shadow-lg transform hover:scale-105 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center"
             >
               {isLoading ? (
-                <LoadingSpinner size="sm" color="text-white" />
+                <LoadingSpinner size="sm\" color="text-white" />
               ) : (
                 isLogin ? 'Sign In' : 'Create Account'
               )}
