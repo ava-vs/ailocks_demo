@@ -8,6 +8,7 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "migrate": "prisma migrate dev",
+    "db:push": "prisma db push",
     "studio": "prisma studio",
     "postinstall": "prisma generate"
   },
@@ -19,7 +20,7 @@
     "bcryptjs": "^2.4.3",
     "express-validator": "^7.0.1",
     "express-rate-limit": "^7.1.5",
-    "@prisma/client": "^5.7.1",
+    "@prisma/client": "latest",
     "dotenv": "^16.3.1"
   },
   "devDependencies": {
@@ -30,6 +31,6 @@
     "@types/node": "^20.10.5",
     "typescript": "^5.3.3",
     "tsx": "^4.6.2",
-    "prisma": "^5.7.1"
+    "prisma": "latest"
   }
 }

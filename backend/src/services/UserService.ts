@@ -1,10 +1,16 @@
+import * as bcrypt from 'bcryptjs';
 import { UserModel, CreateUserData, UpdateUserData } from '../models/User';
 
 export class UserService {
   private userModel = new UserModel();
 
   async create(data: CreateUserData) {
-    return await this.userModel.create(data);
+    const hashedPassword = await bcrypt.hash(data.password, 10);
+
+    return await this.userModel.create({
+      ...data,
+      password: hashedPassword,
+    });
   }
 
   async findById(id: string) {

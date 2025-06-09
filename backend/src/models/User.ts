@@ -22,11 +22,7 @@ export interface UpdateUserData {
 export class UserModel {
   async create(data: CreateUserData) {
     return await prisma.user.create({
-      data: {
-        name: data.name,
-        email: data.email,
-        avatar: data.avatar
-      }
+      data,
     });
   }
 

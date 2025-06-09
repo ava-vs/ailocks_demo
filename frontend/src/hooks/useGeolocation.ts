@@ -10,60 +10,67 @@ interface LocationData {
 }
 
 export const useGeolocation = () => {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const { setLocation } = useAilockStore();
   const { isAuthenticated } = useAuthStore();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const defaultLocation: LocationData = {
+    latitude: 40.7128,
+    longitude: -74.0060,
+    city: 'New York',
+    country: 'USA',
+  };
+
+  const setAsDefaultLocation = (reason: string) => {
+    console.log(`Setting default location (New York) because: ${reason}`);
+    setLocation(defaultLocation);
+    setLoading(false);
+  };
 
   const getCurrentLocation = async () => {
-    if (!navigator.geolocation || !isAuthenticated) {
-      setError('Geolocation is not supported by this browser');
-      return;
-    }
-
     setLoading(true);
     setError(null);
 
-    try {
-      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
-          enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 300000, // 5 minutes
-        });
-      });
-
-      const { latitude, longitude } = position.coords;
-      
-      // Reverse geocoding to get city/country
-      try {
-        const response = await fetch(
-          `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`
-        );
-        const data = await response.json();
-        
-        const locationData: LocationData = {
-          latitude,
-          longitude,
-          city: data.city || data.locality,
-          country: data.countryName
-        };
-        
-        setLocation(locationData);
-      } catch (geocodeError) {
-        // If reverse geocoding fails, still set the coordinates
-        setLocation({ latitude, longitude });
-      }
-    } catch (err) {
-      setError('Unable to retrieve your location');
-      console.error('Geolocation error:', err);
-    } finally {
-      setLoading(false);
+    if (!navigator.geolocation) {
+      setError('Geolocation is not supported by your browser.');
+      setAsDefaultLocation('Geolocation not supported');
+      return;
     }
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        try {
+          const { latitude, longitude } = position.coords;
+          const response = await fetch(
+            `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`
+          );
+          const data = await response.json();
+          const locationData: LocationData = {
+            latitude,
+            longitude,
+            city: data.city || data.locality || 'Unknown City',
+            country: data.countryName || 'Unknown Country',
+          };
+          console.log('Successfully fetched geolocation:', locationData);
+          setLocation(locationData);
+        } catch (geocodeError) {
+          console.error('Reverse geocoding failed:', geocodeError);
+          setAsDefaultLocation('Reverse geocoding failed');
+        } finally {
+          setLoading(false);
+        }
+      },
+      (err) => {
+        setError(err.message);
+        setAsDefaultLocation(`Geolocation permission denied or error: ${err.message}`);
+      }
+    );
   };
 
   useEffect(() => {
     if (isAuthenticated) {
+      console.log('User is authenticated, attempting to get location...');
       getCurrentLocation();
     }
   }, [isAuthenticated]);

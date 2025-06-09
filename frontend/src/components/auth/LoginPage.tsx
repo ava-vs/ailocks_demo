@@ -5,37 +5,29 @@ import { LoadingSpinner } from '../ui/LoadingSpinner';
 import toast from 'react-hot-toast';
 
 export const LoginPage: React.FC = () => {
-  const [isLogin, setIsLogin] = useState(true);
-  const [showPassword, setShowPassword] = useState(false);
+  const [isRegister, setIsRegister] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     password: '',
   });
-
-  const { login, register, isLoading, error, clearError } = useAuthStore();
+  const { login, register, error, isLoading, clearError } = useAuthStore();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     clearError();
-
-    try {
-      if (isLogin) {
-        await login({ email: formData.email, password: formData.password });
-        toast.success('Welcome back!');
-      } else {
-        await register(formData);
-        toast.success('Account created successfully!');
-      }
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Authentication failed');
+    if (isRegister) {
+      await register({ name: formData.name, email: formData.email, password: formData.password });
+    } else {
+      await login({ email: formData.email, password: formData.password });
     }
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [e.target.name]: e.target.value,
+      [name]: value
     }));
   };
 
@@ -51,16 +43,16 @@ export const LoginPage: React.FC = () => {
             Ailocks
           </h1>
           <p className="text-gray-600 mt-2">
-            {isLogin ? 'Welcome back to your AI2AI Network' : 'Join the AI2AI Network'}
+            {isRegister ? 'Join the AI2AI Network' : 'Welcome back to your AI2AI Network'}
           </p>
         </div>
 
         {/* Auth Form */}
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl p-8 border border-gray-200/50">
           <form onSubmit={handleSubmit} className="space-y-6">
-            {!isLogin && (
+            {isRegister && (
               <div>
-                <label htmlFor="name\" className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
                   Full Name
                 </label>
                 <div className="relative">
@@ -71,7 +63,7 @@ export const LoginPage: React.FC = () => {
                     name="name"
                     value={formData.name}
                     onChange={handleInputChange}
-                    required={!isLogin}
+                    required
                     className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white/50"
                     placeholder="Enter your full name"
                   />
@@ -105,7 +97,7 @@ export const LoginPage: React.FC = () => {
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                 <input
-                  type={showPassword ? 'text' : 'password'}
+                  type="password"
                   id="password"
                   name="password"
                   value={formData.password}
@@ -114,13 +106,6 @@ export const LoginPage: React.FC = () => {
                   className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white/50"
                   placeholder="Enter your password"
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                >
-                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                </button>
               </div>
             </div>
 
@@ -136,9 +121,9 @@ export const LoginPage: React.FC = () => {
               className="w-full bg-gradient-primary text-white py-3 px-4 rounded-xl font-medium hover:shadow-lg transform hover:scale-105 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center"
             >
               {isLoading ? (
-                <LoadingSpinner size="sm\" color="text-white" />
+                <LoadingSpinner size="sm" color="text-white" />
               ) : (
-                isLogin ? 'Sign In' : 'Create Account'
+                isRegister ? 'Create Account' : 'Sign In'
               )}
             </button>
           </form>
@@ -147,15 +132,15 @@ export const LoginPage: React.FC = () => {
           <div className="mt-6 text-center">
             <button
               onClick={() => {
-                setIsLogin(!isLogin);
+                setIsRegister(!isRegister);
                 clearError();
                 setFormData({ name: '', email: '', password: '' });
               }}
               className="text-primary-600 hover:text-primary-700 font-medium"
             >
-              {isLogin 
-                ? "Don't have an account? Sign up" 
-                : "Already have an account? Sign in"
+              {isRegister 
+                ? "Already have an account? Sign in" 
+                : "Don't have an account? Sign up"
               }
             </button>
           </div>
