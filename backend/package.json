@@ -7,8 +7,9 @@
     "dev": "dotenv -e ../.env -- tsx watch src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
+    "generate": "dotenv -e ../.env -- prisma generate",
     "migrate": "dotenv -e ../.env -- prisma migrate dev",
-    "db:push": "dotenv -e ../.env -- prisma db push",
+    "db:push": "dotenv -e ../.env -- prisma generate && dotenv -e ../.env -- prisma db push",
     "studio": "dotenv -e ../.env -- prisma studio",
     "postinstall": "dotenv -e ../.env -- prisma generate"
   },
