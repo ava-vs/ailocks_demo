@@ -41,6 +41,7 @@ model Ailock {
 // Ailock sessions for tracking active interactions
 model AilockSession {
   id           String   @id @default(cuid())
+  user         User     @relation(fields: [userId], references: [id])
   userId       String
   mode         String   @default("researcher")
   location     String?
