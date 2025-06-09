@@ -22,10 +22,12 @@ model User {
   country   String?
   createdAt DateTime @default(now())
 
-  ailockSessions AilockSession[]
-  chatSessions   ChatSession[]
-  ailocks         Ailock[]
-  intents         Intent[]
+  ailockSessions   AilockSession[]
+  chatSessions     ChatSession[]
+  ailocks          Ailock[]
+  intents          Intent[]
+  chatParticipants ChatParticipant[]
+  messages         Message[]
 }
 
 // Ailock Agent
@@ -51,7 +53,42 @@ model AilockSession {
   lastActivity DateTime @default(now())
 }
 
-// Chat sessions
+// Chat management
+model Chat {
+  id           String   @id @default(cuid())
+  name         String?
+  mode         String   @default("researcher")
+  createdAt    DateTime @default(now())
+  lastActivity DateTime @default(now())
+
+  participants ChatParticipant[]
+  messages     Message[]
+}
+
+model ChatParticipant {
+  id     String @id @default(cuid())
+  user   User   @relation(fields: [userId], references: [id])
+  userId String
+  chat   Chat   @relation(fields: [chatId], references: [id])
+  chatId String
+  role   String @default("member") // admin, member
+  
+  @@unique([userId, chatId])
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  content   String
+  type      String   @default("text") // text, image, file, system
+  sender    User     @relation(fields: [senderId], references: [id])
+  senderId  String
+  chat      Chat     @relation(fields: [chatId], references: [id])
+  chatId    String
+  metadata  String?  // JSON string
+  createdAt DateTime @default(now())
+}
+
+// Chat sessions (legacy - keeping for compatibility)
 model ChatSession {
   id           String   @id @default(cuid())
   user         User     @relation(fields: [userId], references: [id])
@@ -82,7 +119,10 @@ model Intent {
   sessionId   String?
   title       String
   description String
+  type        String       @default("request") // offer, request
   category    String
-  status      String       @default("draft") // draft, active, matched, completed
+  location    String?
+  status      String       @default("draft") // draft, active, matched, completed, cancelled
+  expiresAt   DateTime?
   createdAt   DateTime     @default(now())
 }
