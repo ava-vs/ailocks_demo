@@ -1,11 +1,12 @@
 generator client {
-  provider = "prisma-client-js"
+  provider   = "prisma-client-js"
   engineType = "binary"
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.db"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // User management
@@ -72,7 +73,7 @@ model ChatParticipant {
   chat   Chat   @relation(fields: [chatId], references: [id])
   chatId String
   role   String @default("member") // admin, member
-  
+
   @@unique([userId, chatId])
 }
 
@@ -84,7 +85,7 @@ model Message {
   senderId  String
   chat      Chat     @relation(fields: [chatId], references: [id])
   chatId    String
-  metadata  String?  // JSON string
+  metadata  String? // JSON string
   createdAt DateTime @default(now())
 }
 

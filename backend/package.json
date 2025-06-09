@@ -9,7 +9,6 @@
     "start": "node dist/server.js",
     "migrate": "prisma migrate dev",
     "db:push": "prisma db push",
-    "db:reset": "rm -f prisma/dev.db",
     "studio": "prisma studio",
     "postinstall": "prisma generate"
   },
