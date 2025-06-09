@@ -4,7 +4,7 @@
   "description": "Ailocks AI2AI Network Backend",
   "main": "dist/server.js",
   "scripts": {
-    "dev": "dotenv -e ../.env -- tsx watch src/server.ts",
+    "dev": "dotenv -e ../.env -- prisma generate && dotenv -e ../.env -- tsx watch src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
     "generate": "dotenv -e ../.env -- prisma generate",

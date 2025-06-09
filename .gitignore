@@ -23,3 +23,6 @@ dist-ssr
 *.sln
 *.sw?
 .env
+backend/prod-ca-2021.crt
+backend/test-db-connection.js
+backend/test-prisma-connection.js

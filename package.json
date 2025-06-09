@@ -8,8 +8,15 @@
     "backend"
   ],
   "scripts": {
-    "dev": "npm run db:push -w backend && concurrently \"npm run dev -w backend\" \"npm run dev -w frontend\"",
-    "build": "npm run build -w frontend && npm run build -w backend",
+    "dev": "npm run generate -w backend && npm run dev -w backend & npm run dev -w frontend",
+    "build": "npm run build -w backend && npm run build -w frontend",
+    "start:backend": "npm run start -w backend",
+    "start:frontend": "npm run preview -w frontend",
+    "generate": "npm run generate -w backend",
+    "migrate": "npm run migrate -w backend",
+    "db:push": "npm run generate -w backend && npm run db:push -w backend",
+    "studio": "npm run studio -w backend",    
+    "diagnostics": "npm run diagnostics -w backend",
     "lint": "npm run lint -w frontend && npm run lint -w backend"
   },
   "devDependencies": {
