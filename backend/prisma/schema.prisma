@@ -1,6 +1,6 @@
 generator client {
   provider      = "prisma-client-js"
-  binaryTargets = ["native", "linux-musl", "debian-openssl-1.1.x"]
+  binaryTargets = ["native", "debian-openssl-1.1.x", "debian-openssl-3.0.x"]
 }
 
 datasource db {
@@ -8,208 +8,61 @@ datasource db {
   url      = "file:./dev.db"
 }
 
+// User management
 model User {
   id        String   @id @default(cuid())
-  name      String
   email     String   @unique
   password  String
-  avatar    String?
-  latitude  Float?
-  longitude Float?
-  city      String?
-  country   String?
-  status    String   @default("offline") // online, offline, busy
+  name      String?
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 
-  // Relations
-  sentMessages     Message[] @relation("MessageSender")
-  chatParticipants ChatParticipant[]
-  intents          Intent[]
-  ailockSessions   AilockSession[]
-  ownedAgents      AilockAgent[] @relation("AgentOwner")
-  teamMemberships  AilockTeamMember[]
-  negotiations     Negotiation[]
-
-  @@map("users")
+  chatSessions ChatSession[]
+  ailocks      Ailock[]
+  intents      Intent[]
 }
 
-model Chat {
-  id           String   @id @default(cuid())
-  name         String?
-  mode         String   @default("researcher") // researcher, creator, analyst
-  lastActivity DateTime @default(now())
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  // Relations
-  messages     Message[]
-  participants ChatParticipant[]
-
-  @@map("chats")
-}
-
-model ChatParticipant {
-  id     String @id @default(cuid())
-  userId String
-  chatId String
-  role   String @default("member") // admin, member
-
-  // Relations
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  chat Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, chatId])
-  @@map("chat_participants")
-}
-
-model Message {
+// Ailock Agent
+model Ailock {
   id        String   @id @default(cuid())
-  content   String
-  type      String   @default("text") // text, image, file, system
-  senderId  String
-  chatId    String
-  metadata  String? // JSON string for additional data
+  name      String
+  mode      String   @default("creator") // researcher, creator, analyst
+  owner     User     @relation(fields: [ownerId], references: [id])
+  ownerId   String
   createdAt DateTime @default(now())
-
-  // Relations
-  sender User @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
-  chat   Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
-
-  @@map("messages")
 }
 
-model Intent {
-  id          String   @id @default(cuid())
-  title       String
-  description String
-  type        String   // offer, request
-  category    String
-  location    String?
-  userId      String
-  status      String   @default("active") // active, completed, cancelled
-  expiresAt   DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // Relations
-  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  chainLinks   ChainLink[]
-  negotiations Negotiation[]
-
-  @@map("intents")
-}
-
-model AilockSession {
+// Chat sessions
+model ChatSession {
   id           String   @id @default(cuid())
+  user         User     @relation(fields: [userId], references: [id])
   userId       String
-  mode         String   @default("researcher")
-  location     String? // JSON string
-  contextData  String? // JSON string for context actions and state
-  isActive     Boolean  @default(true)
-  lastActivity DateTime @default(now())
+  ailockMode   String   @default("creator")
   createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  lastActivity DateTime @default(now())
 
-  // Relations
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("ailock_sessions")
+  messages ChatMessage[]
+  intents  Intent[]
 }
 
-model AilockAgent {
-  id          String   @id @default(cuid())
-  name        String
-  description String
-  ownerId     String
-  personality String? // JSON string
-  skills      String? // JSON string
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // Relations
-  owner           User               @relation("AgentOwner", fields: [ownerId], references: [id], onDelete: Cascade)
-  teamMemberships AilockTeamMember[]
-
-  @@map("ailock_agents")
+model ChatMessage {
+  id        String      @id @default(cuid())
+  session   ChatSession @relation(fields: [sessionId], references: [id])
+  sessionId String
+  sender    String // 'user' or 'ailock'
+  content   String
+  timestamp DateTime    @default(now())
 }
 
-model AilockTeam {
-  id          String   @id @default(cuid())
-  name        String
-  description String
-  purpose     String
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // Relations
-  members AilockTeamMember[]
-
-  @@map("ailock_teams")
-}
-
-model AilockTeamMember {
-  id      String @id @default(cuid())
-  teamId  String
-  userId  String?
-  agentId String?
-  role    String @default("member") // leader, member, specialist
-
-  // Relations
-  team  AilockTeam   @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  user  User?        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  agent AilockAgent? @relation(fields: [agentId], references: [id], onDelete: Cascade)
-
-  @@unique([teamId, userId])
-  @@unique([teamId, agentId])
-  @@map("ailock_team_members")
-}
-
-model SmartChain {
-  id          String   @id @default(cuid())
+// Core business entities
+model Intent {
+  id          String       @id @default(cuid())
+  user        User         @relation(fields: [userId], references: [id])
+  userId      String
+  session     ChatSession? @relation(fields: [sessionId], references: [id])
+  sessionId   String?
   title       String
   description String
-  status      String   @default("planning") // planning, active, completed, failed
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // Relations
-  links ChainLink[]
-
-  @@map("smart_chains")
-}
-
-model ChainLink {
-  id          String @id @default(cuid())
-  chainId     String
-  intentId    String
-  order       Int
-  status      String @default("pending") // pending, active, completed, failed
-  dependencies String? // JSON array of link IDs
-
-  // Relations
-  chain  SmartChain @relation(fields: [chainId], references: [id], onDelete: Cascade)
-  intent Intent     @relation(fields: [intentId], references: [id], onDelete: Cascade)
-
-  @@unique([chainId, order])
-  @@map("chain_links")
-}
-
-model Negotiation {
-  id        String   @id @default(cuid())
-  intentId  String
-  userId    String
-  status    String   @default("pending") // pending, accepted, rejected, counter
-  message   String?
-  terms     String? // JSON string
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations
-  intent Intent @relation(fields: [intentId], references: [id], onDelete: Cascade)
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("negotiations")
+  category    String
+  status      String       @default("draft") // draft, active, matched, completed
+  createdAt   DateTime     @default(now())
 }
