@@ -22,9 +22,10 @@ model User {
   country   String?
   createdAt DateTime @default(now())
 
-  chatSessions ChatSession[]
-  ailocks      Ailock[]
-  intents      Intent[]
+  ailockSessions AilockSession[]
+  chatSessions   ChatSession[]
+  ailocks         Ailock[]
+  intents         Intent[]
 }
 
 // Ailock Agent
