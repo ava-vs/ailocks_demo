@@ -13,7 +13,8 @@
     "lint": "npm run lint -w frontend && npm run lint -w backend"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2"
+    "concurrently": "^8.2.2",
+    "prisma": "^6.9.0"
   },
   "dependencies": {
     "@prisma/client": "^6.9.0"
