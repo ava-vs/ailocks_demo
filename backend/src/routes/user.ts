@@ -1,7 +1,6 @@
 import { Router } from 'express';
 import { UserController } from '../controllers/UserController';
 import { authenticateToken } from '../middleware/auth';
-import { validateUser } from '../middleware/validation';
 
 const router = Router();
 const userController = new UserController();
@@ -9,11 +8,13 @@ const userController = new UserController();
 // All user routes require authentication
 router.use(authenticateToken);
 
-// User management routes
+// User profile management
 router.get('/profile', userController.getProfile);
-router.put('/profile', validateUser, userController.updateProfile);
-router.post('/location', userController.updateLocation);
-router.get('/nearby', userController.getNearbyUsers);
+router.put('/profile', userController.updateProfile);
+router.put('/location', userController.updateLocation);
 router.put('/status', userController.updateStatus);
+
+// User discovery
+router.get('/nearby', userController.getNearbyUsers);
 
 export { router as userRoutes };

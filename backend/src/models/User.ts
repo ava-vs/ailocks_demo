@@ -1,6 +1,4 @@
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { database } from './database';
 
 export interface CreateUserData {
   name: string;
@@ -21,13 +19,13 @@ export interface UpdateUserData {
 
 export class UserModel {
   async create(data: CreateUserData) {
-    return await prisma.user.create({
+    return await database.client.user.create({
       data,
     });
   }
 
   async findById(id: string) {
-    return await prisma.user.findUnique({
+    return await database.client.user.findUnique({
       where: { id },
       include: {
         chatParticipants: {
@@ -45,13 +43,13 @@ export class UserModel {
   }
 
   async findByEmail(email: string) {
-    return await prisma.user.findUnique({
+    return await database.client.user.findUnique({
       where: { email }
     });
   }
 
   async update(id: string, data: UpdateUserData) {
-    return await prisma.user.update({
+    return await database.client.user.update({
       where: { id },
       data
     });
@@ -63,7 +61,7 @@ export class UserModel {
     city?: string;
     country?: string;
   }) {
-    return await prisma.user.update({
+    return await database.client.user.update({
       where: { id },
       data: {
         latitude: location.latitude,
@@ -81,7 +79,7 @@ export class UserModel {
     }
 
     // Simple distance calculation (for production, use PostGIS or similar)
-    const users = await prisma.user.findMany({
+    const users = await database.client.user.findMany({
       where: {
         AND: [
           { id: { not: userId } },
@@ -131,7 +129,7 @@ export class UserModel {
   }
 
   async delete(id: string) {
-    return await prisma.user.delete({
+    return await database.client.user.delete({
       where: { id }
     });
   }

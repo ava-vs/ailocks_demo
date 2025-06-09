@@ -1,7 +1,6 @@
 import { Router } from 'express';
 import { ChatController } from '../controllers/ChatController';
 import { authenticateToken } from '../middleware/auth';
-import { validateChat } from '../middleware/validation';
 
 const router = Router();
 const chatController = new ChatController();
@@ -9,18 +8,18 @@ const chatController = new ChatController();
 // All chat routes require authentication
 router.use(authenticateToken);
 
-// Chat management routes
+// Chat management
 router.get('/', chatController.getUserChats);
-router.post('/', validateChat, chatController.createChat);
+router.post('/', chatController.createChat);
 router.get('/:chatId', chatController.getChatById);
-router.put('/:chatId', validateChat, chatController.updateChat);
+router.put('/:chatId', chatController.updateChat);
 router.delete('/:chatId', chatController.deleteChat);
 
-// Message routes
+// Chat messages
 router.get('/:chatId/messages', chatController.getChatMessages);
 router.post('/:chatId/messages', chatController.sendMessage);
 
-// Participant routes
+// Chat participants
 router.post('/:chatId/participants', chatController.addParticipant);
 router.delete('/:chatId/participants/:userId', chatController.removeParticipant);
 

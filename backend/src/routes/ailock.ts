@@ -14,9 +14,9 @@ router.get('/session', ailockController.getCurrentSession);
 router.put('/session', ailockController.updateSession);
 router.delete('/session', ailockController.endSession);
 
-// Ailock interaction routes
+// Ailock interaction
 router.post('/query', ailockController.processQuery);
-router.get('/context', ailockController.getContextActions);
-router.post('/action', ailockController.executeAction);
+router.get('/actions', ailockController.getContextActions);
+router.post('/action/:actionId', ailockController.executeAction);
 
 export { router as ailockRoutes };
