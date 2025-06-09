@@ -1,6 +1,6 @@
 generator client {
-  provider      = "prisma-client-js"
-  binaryTargets = ["native", "debian-openssl-1.1.x", "debian-openssl-3.0.x"]
+  provider = "prisma-client-js"
+  engineType = "library"
 }
 
 datasource db {
@@ -14,6 +14,12 @@ model User {
   email     String   @unique
   password  String
   name      String?
+  avatar    String?
+  status    String   @default("offline")
+  latitude  Float?
+  longitude Float?
+  city      String?
+  country   String?
   createdAt DateTime @default(now())
 
   chatSessions ChatSession[]
@@ -29,6 +35,18 @@ model Ailock {
   owner     User     @relation(fields: [ownerId], references: [id])
   ownerId   String
   createdAt DateTime @default(now())
+}
+
+// Ailock sessions for tracking active interactions
+model AilockSession {
+  id           String   @id @default(cuid())
+  userId       String
+  mode         String   @default("researcher")
+  location     String?
+  contextData  String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  lastActivity DateTime @default(now())
 }
 
 // Chat sessions
