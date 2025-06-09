@@ -11,6 +11,7 @@ model User {
   id        String   @id @default(cuid())
   name      String
   email     String   @unique
+  password  String
   avatar    String?
   latitude  Float?
   longitude Float?
@@ -24,6 +25,10 @@ model User {
   sentMessages     Message[] @relation("MessageSender")
   chatParticipants ChatParticipant[]
   intents          Intent[]
+  ailockSessions   AilockSession[]
+  ownedAgents      AilockAgent[] @relation("AgentOwner")
+  teamMemberships  AilockTeamMember[]
+  negotiations     Negotiation[]
 
   @@map("users")
 }
@@ -87,7 +92,9 @@ model Intent {
   updatedAt   DateTime @updatedAt
 
   // Relations
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chainLinks   ChainLink[]
+  negotiations Negotiation[]
 
   @@map("intents")
 }
@@ -103,5 +110,105 @@ model AilockSession {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@map("ailock_sessions")
+}
+
+model AilockAgent {
+  id          String   @id @default(cuid())
+  name        String
+  description String
+  ownerId     String
+  personality String? // JSON string
+  skills      String? // JSON string
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  owner           User               @relation("AgentOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  teamMemberships AilockTeamMember[]
+
+  @@map("ailock_agents")
+}
+
+model AilockTeam {
+  id          String   @id @default(cuid())
+  name        String
+  description String
+  purpose     String
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  members AilockTeamMember[]
+
+  @@map("ailock_teams")
+}
+
+model AilockTeamMember {
+  id      String @id @default(cuid())
+  teamId  String
+  userId  String?
+  agentId String?
+  role    String @default("member") // leader, member, specialist
+
+  // Relations
+  team  AilockTeam   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user  User?        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agent AilockAgent? @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, userId])
+  @@unique([teamId, agentId])
+  @@map("ailock_team_members")
+}
+
+model SmartChain {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  status      String   @default("planning") // planning, active, completed, failed
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  links ChainLink[]
+
+  @@map("smart_chains")
+}
+
+model ChainLink {
+  id          String @id @default(cuid())
+  chainId     String
+  intentId    String
+  order       Int
+  status      String @default("pending") // pending, active, completed, failed
+  dependencies String? // JSON array of link IDs
+
+  // Relations
+  chain  SmartChain @relation(fields: [chainId], references: [id], onDelete: Cascade)
+  intent Intent     @relation(fields: [intentId], references: [id], onDelete: Cascade)
+
+  @@unique([chainId, order])
+  @@map("chain_links")
+}
+
+model Negotiation {
+  id        String   @id @default(cuid())
+  intentId  String
+  userId    String
+  status    String   @default("pending") // pending, accepted, rejected, counter
+  message   String?
+  terms     String? // JSON string
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  intent Intent @relation(fields: [intentId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("negotiations")
 }

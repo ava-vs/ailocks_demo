@@ -2,24 +2,32 @@ import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
+import jwt from 'jsonwebtoken';
 import { PrismaClient } from '@prisma/client';
 import { apiRoutes } from './routes';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { rateLimiter } from './middleware/rateLimiter';
+import { AilockService } from './services/AilockService';
 
 const app = express();
 const server = createServer(app);
 const io = new Server(server, {
   cors: {
     origin: "http://localhost:5173",
-    methods: ["GET", "POST"]
+    methods: ["GET", "POST"],
+    credentials: true
   }
 });
 
 const prisma = new PrismaClient();
+const ailockService = new AilockService();
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: "http://localhost:5173",
+  credentials: true
+}));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(rateLimiter);
@@ -37,79 +45,137 @@ app.get('/health', (req, res) => {
   });
 });
 
+// WebSocket Authentication Middleware
+io.use(async (socket, next) => {
+  try {
+    const token = socket.handshake.auth.token;
+    
+    if (!token) {
+      return next(new Error('Authentication token required'));
+    }
+
+    const decoded = jwt.verify(token, JWT_SECRET) as any;
+    
+    // Fetch user from database
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        avatar: true,
+        status: true
+      }
+    });
+
+    if (!user) {
+      return next(new Error('User not found'));
+    }
+
+    // Attach user to socket
+    socket.data.user = user;
+    socket.data.userId = user.id;
+    
+    console.log(`User ${user.name} (${user.id}) connected via WebSocket`);
+    next();
+  } catch (error) {
+    console.error('WebSocket authentication error:', error);
+    next(new Error('Authentication failed'));
+  }
+});
+
 // Socket.io connection handling
 io.on('connection', (socket) => {
-  console.log('User connected:', socket.id);
+  const user = socket.data.user;
+  console.log('Authenticated user connected:', user.name);
 
-  socket.on('message', async (message) => {
+  // Update user status to online
+  prisma.user.update({
+    where: { id: user.id },
+    data: { status: 'online' }
+  }).catch(console.error);
+
+  // Handle user messages
+  socket.on('user_message', async (message) => {
     try {
-      // Broadcast message to all connected clients
-      io.emit('message', {
-        ...message,
-        timestamp: new Date()
-      });
+      console.log('Received user message:', message);
 
-      // Store message in database if it has a chatId
-      if (message.chatId) {
-        await prisma.message.create({
-          data: {
-            content: message.content,
-            type: message.type || 'text',
-            senderId: message.senderId,
-            chatId: message.chatId,
-            metadata: message.metadata ? JSON.stringify(message.metadata) : null
-          }
-        });
-
-        // Update chat's last activity
-        await prisma.chat.update({
-          where: { id: message.chatId },
-          data: { lastActivity: new Date() }
+      // Ensure we have a valid session
+      let session = await ailockService.getCurrentSession(user.id);
+      if (!session) {
+        session = await ailockService.createSession({
+          userId: user.id,
+          mode: 'researcher',
+          location: null,
+          contextData: null
         });
       }
+
+      // Process the query with Ailock service
+      const response = await ailockService.processQuery(user.id, {
+        query: message.content,
+        mode: session.mode,
+        context: message.metadata
+      });
+
+      // Create AI response message
+      const aiMessage = {
+        id: `ai_${Date.now()}`,
+        content: response.response,
+        senderId: 'ailock',
+        timestamp: new Date(),
+        type: 'text',
+        metadata: {
+          mode: response.mode,
+          sessionId: response.sessionId
+        }
+      };
+
+      // Send response back to the specific user
+      socket.emit('ailock_response', aiMessage);
+      
+      console.log('Sent ailock response to user:', user.name);
+
     } catch (error) {
-      console.error('Error handling message:', error);
-      socket.emit('error', { message: 'Failed to process message' });
+      console.error('Error processing user message:', error);
+      socket.emit('error', { 
+        message: 'Failed to process message',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   });
 
   socket.on('typing', (data) => {
-    // Broadcast typing status to other clients
-    socket.broadcast.emit('typing', data);
+    // Broadcast typing status to other clients (if needed for multi-user chats)
+    socket.broadcast.emit('typing', {
+      ...data,
+      userId: user.id,
+      userName: user.name
+    });
   });
 
   socket.on('join-room', (roomId) => {
     socket.join(roomId);
-    console.log(`User ${socket.id} joined room ${roomId}`);
+    console.log(`User ${user.name} joined room ${roomId}`);
   });
 
   socket.on('leave-room', (roomId) => {
     socket.leave(roomId);
-    console.log(`User ${socket.id} left room ${roomId}`);
+    console.log(`User ${user.name} left room ${roomId}`);
   });
 
-  socket.on('user-status', async (data) => {
+  socket.on('disconnect', async () => {
+    console.log('User disconnected:', user.name);
+    
+    // Update user status to offline
     try {
-      if (data.userId && data.status) {
-        await prisma.user.update({
-          where: { id: data.userId },
-          data: { status: data.status }
-        });
-
-        // Broadcast status update to all clients
-        io.emit('user-status-update', {
-          userId: data.userId,
-          status: data.status,
-          timestamp: new Date()
-        });
-      }
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { status: 'offline' }
+      });
     } catch (error) {
-      console.error('Error updating user status:', error);
+      console.error('Error updating user status on disconnect:', error);
     }
-  });
-
-  socket.on('disconnect', () => {
-    console.log('User disconnected:', socket.id);
   });
 });
 
@@ -121,7 +187,7 @@ const PORT = process.env.PORT || 3001;
 
 server.listen(PORT, () => {
   console.log(`🚀 Ailocks backend server running on port ${PORT}`);
-  console.log(`📡 Socket.io server ready for connections`);
+  console.log(`📡 Socket.io server ready for authenticated connections`);
   console.log(`🗄️  Database connected via Prisma`);
   console.log(`🔗 API available at http://localhost:${PORT}/api`);
 });
