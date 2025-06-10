@@ -2,8 +2,12 @@ import express from 'express';
 import cors from 'cors';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
+import jwt from 'jsonwebtoken';
 import { db } from './models/database';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
+import { socketAuthMiddleware, AuthenticatedSocket } from './middleware/socketAuth';
+import { ChatMessageService } from './services/ChatMessageService';
+import { ContextualActionGenerator } from './services/ContextualActionGenerator';
 
 // Import routes
 import { authRoutes } from './routes/auth';
@@ -17,9 +21,14 @@ const server = createServer(app);
 const io = new Server(server, {
   cors: {
     origin: process.env.NODE_ENV === 'production' ? false : "https://localhost:5173",
-    methods: ["GET", "POST"]
+    methods: ["GET", "POST"],
+    credentials: true
   }
 });
+
+// Initialize services
+const chatMessageService = new ChatMessageService();
+const actionGenerator = new ContextualActionGenerator();
 
 // Middleware
 app.use(cors({
@@ -83,7 +92,9 @@ app.get('/api', (req, res) => {
         'GET /api/ailock/session': 'Get current session',
         'PUT /api/ailock/session': 'Update session',
         'DELETE /api/ailock/session': 'End session',
+        'POST /api/ailock/chat': 'Start AI chat session',
         'POST /api/ailock/query': 'Process ailock query',
+        'GET /api/ailock/context/:sessionId': 'Get conversation context',
         'GET /api/ailock/actions': 'Get context actions',
         'POST /api/ailock/action/:actionId': 'Execute action'
       }
@@ -104,22 +115,181 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Socket.io authentication middleware
+io.use(socketAuthMiddleware);
+
 // Socket.io connection handling
-io.on('connection', (socket) => {
-  console.log('User connected:', socket.id);
+io.on('connection', (socket: AuthenticatedSocket) => {
+  console.log('User connected:', socket.id, 'User ID:', socket.userId);
   
-  socket.on('join_room', (roomId) => {
-    socket.join(roomId);
-    console.log(`Socket ${socket.id} joined room: ${roomId}`);
+  // Join user to their personal room
+  if (socket.userId) {
+    socket.join(`user:${socket.userId}`);
+  }
+  
+  // Handle joining specific chat sessions
+  socket.on('join_session', (sessionId: string) => {
+    socket.join(`session:${sessionId}`);
+    console.log(`Socket ${socket.id} joined session: ${sessionId}`);
   });
   
-  socket.on('leave_room', (roomId) => {
-    socket.leave(roomId);
-    console.log(`Socket ${socket.id} left room: ${roomId}`);
+  socket.on('leave_session', (sessionId: string) => {
+    socket.leave(`session:${sessionId}`);
+    console.log(`Socket ${socket.id} left session: ${sessionId}`);
   });
-  
+
+  // Handle user messages
+  socket.on('user_message', async (data: {
+    content: string;
+    sessionId?: string;
+    mode?: string;
+  }) => {
+    try {
+      if (!socket.userId) {
+        socket.emit('error', { message: 'User not authenticated' });
+        return;
+      }
+
+      console.log('Received user message:', data);
+
+      // Get or create session
+      const mode = (data.mode || 'researcher') as any;
+      let sessionId = data.sessionId;
+      
+      if (!sessionId) {
+        const session = await chatMessageService.createOrGetSession(socket.userId, mode);
+        sessionId = session.id;
+        socket.emit('session_created', { sessionId });
+      }
+
+      // Join session room
+      socket.join(`session:${sessionId}`);
+
+      // Save user message
+      await chatMessageService.saveMessage({
+        content: data.content,
+        sender: 'user',
+        sessionId,
+        userId: socket.userId
+      });
+
+      // Emit typing indicator
+      socket.to(`session:${sessionId}`).emit('typing', { 
+        isTyping: true, 
+        userId: 'ailock' 
+      });
+
+      // Get user context
+      const userContext = await chatMessageService.getUserContext(socket.userId);
+
+      // Generate AI response with streaming
+      const aiResponse = await chatMessageService.generateAIResponse(
+        data.content,
+        sessionId,
+        socket.userId,
+        mode,
+        userContext,
+        (chunk: string) => {
+          // Stream response chunks to client
+          socket.emit('ai_response_chunk', {
+            sessionId,
+            chunk,
+            done: false
+          });
+        }
+      );
+
+      // Send final response with actions
+      socket.emit('ai_response_complete', {
+        sessionId,
+        content: aiResponse.content,
+        actions: aiResponse.actions,
+        usage: aiResponse.usage,
+        model: aiResponse.model,
+        provider: aiResponse.provider
+      });
+
+      // Stop typing indicator
+      socket.to(`session:${sessionId}`).emit('typing', { 
+        isTyping: false, 
+        userId: 'ailock' 
+      });
+
+      // Update session activity
+      await chatMessageService.updateSessionActivity(sessionId);
+
+    } catch (error) {
+      console.error('Error processing user message:', error);
+      socket.emit('error', { 
+        message: 'Failed to process message',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  // Handle action execution
+  socket.on('execute_action', async (data: {
+    actionId: string;
+    parameters?: any;
+    sessionId?: string;
+  }) => {
+    try {
+      if (!socket.userId) {
+        socket.emit('error', { message: 'User not authenticated' });
+        return;
+      }
+
+      console.log('Executing action:', data);
+
+      // Get user context
+      const userContext = await chatMessageService.getUserContext(socket.userId);
+      
+      // Execute action
+      const result = await actionGenerator.executeAction(data.actionId, {
+        ...data.parameters,
+        userId: socket.userId,
+        userContext
+      });
+
+      socket.emit('action_result', {
+        actionId: data.actionId,
+        result,
+        sessionId: data.sessionId
+      });
+
+      // If action was successful and has follow-up actions, send them
+      if (result.success && result.followUpActions) {
+        socket.emit('context_actions_updated', {
+          actions: result.followUpActions,
+          sessionId: data.sessionId
+        });
+      }
+
+    } catch (error) {
+      console.error('Error executing action:', error);
+      socket.emit('error', { 
+        message: 'Failed to execute action',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  // Handle typing indicators
+  socket.on('typing', (data: { isTyping: boolean; sessionId: string }) => {
+    socket.to(`session:${data.sessionId}`).emit('typing', {
+      isTyping: data.isTyping,
+      userId: socket.userId
+    });
+  });
+
+  // Handle disconnection
   socket.on('disconnect', () => {
-    console.log('User disconnected:', socket.id);
+    console.log('User disconnected:', socket.id, 'User ID:', socket.userId);
+  });
+
+  // Handle connection errors
+  socket.on('error', (error) => {
+    console.error('Socket error:', error);
   });
 });
 
@@ -142,6 +312,7 @@ async function startServer() {
     server.listen(PORT, () => {
       console.log(`🚀 Ailocks backend server running on port ${PORT}`);
       console.log('📡 Socket.io server ready for authenticated connections');
+      console.log('🤖 LLM integration enabled');
       console.log('🗄️  Database connected via Drizzle ORM');
       console.log(`🔗 API available at http://localhost:${PORT}/api`);
     });

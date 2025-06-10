@@ -1,9 +1,11 @@
 import React from 'react';
 import * as LucideIcons from 'lucide-react';
 import { useAilockStore } from '../../store/ailockStore';
+import { useSocket } from '../../hooks/useSocket';
 
 export const ContextActions: React.FC = () => {
   const { contextActions, currentMode } = useAilockStore();
+  const { executeAction } = useSocket();
 
   if (contextActions.length === 0) return null;
 
@@ -14,6 +16,11 @@ export const ContextActions: React.FC = () => {
       case 'analyst': return 'from-green-500 to-emerald-500';
       default: return 'from-gray-500 to-gray-600';
     }
+  };
+
+  const handleActionClick = (action: any) => {
+    // Execute action via socket
+    executeAction(action.id, action.parameters || {});
   };
 
   return (
@@ -31,12 +38,13 @@ export const ContextActions: React.FC = () => {
           return (
             <button
               key={action.id}
-              onClick={action.action}
+              onClick={() => handleActionClick(action)}
               className={`
                 flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium
                 bg-gradient-to-r ${getModeColor(currentMode)} text-white
                 hover:shadow-lg transform hover:scale-105 transition-all duration-200
               `}
+              title={action.description || action.label}
             >
               <IconComponent className="w-4 h-4" />
               <span>{action.label}</span>

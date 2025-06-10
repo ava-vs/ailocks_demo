@@ -4,7 +4,9 @@ import { AilockState, AilockMode, Message, Chat, Intent, ContextAction } from '.
 interface AilockStore extends AilockState {
   // Chat state
   currentChat: Chat | null;
+  currentSessionId: string | null;
   messages: Message[];
+  streamingMessage: string;
   isConnected: boolean;
   
   // Intents
@@ -15,10 +17,14 @@ interface AilockStore extends AilockState {
   setTyping: (isTyping: boolean) => void;
   setLocation: (location: { latitude: number; longitude: number; city?: string; country?: string }) => void;
   addMessage: (message: Message) => void;
+  appendToStreamingMessage: (chunk: string) => void;
+  clearStreamingMessage: () => void;
   setChat: (chat: Chat) => void;
   setConnected: (connected: boolean) => void;
+  setCurrentSessionId: (sessionId: string | null) => void;
   addIntent: (intent: Intent) => void;
   updateContextActions: () => void;
+  setContextActions: (actions: ContextAction[]) => void;
 }
 
 export const useAilockStore = create<AilockStore>((set, get) => ({
@@ -28,7 +34,9 @@ export const useAilockStore = create<AilockStore>((set, get) => ({
   location: undefined,
   contextActions: [],
   currentChat: null,
+  currentSessionId: null,
   messages: [],
+  streamingMessage: '',
   isConnected: false,
   intents: [],
 
@@ -45,17 +53,32 @@ export const useAilockStore = create<AilockStore>((set, get) => ({
     get().updateContextActions();
   },
 
-  addMessage: (message) => set((state) => ({ 
-    messages: [...state.messages, message] 
-  })),
+  addMessage: (message) => {
+    set((state) => ({ 
+      messages: [...state.messages, message],
+      streamingMessage: '' // Clear streaming message when adding complete message
+    }));
+  },
+
+  appendToStreamingMessage: (chunk) => {
+    set((state) => ({
+      streamingMessage: state.streamingMessage + chunk
+    }));
+  },
+
+  clearStreamingMessage: () => set({ streamingMessage: '' }),
 
   setChat: (chat) => set({ currentChat: chat }),
 
   setConnected: (connected) => set({ isConnected: connected }),
 
+  setCurrentSessionId: (sessionId) => set({ currentSessionId: sessionId }),
+
   addIntent: (intent) => set((state) => ({ 
     intents: [...state.intents, intent] 
   })),
+
+  setContextActions: (actions) => set({ contextActions: actions }),
 
   updateContextActions: () => {
     const { currentMode, location } = get();
@@ -69,7 +92,10 @@ export const useAilockStore = create<AilockStore>((set, get) => ({
             id: 'search-nearby',
             label: 'Search Nearby',
             icon: 'MapPin',
-            action: () => console.log('Search nearby'),
+            action: () => {
+              // This will be handled by the socket executeAction
+              console.log('Search nearby action triggered');
+            },
             category: 'research'
           },
           {
@@ -77,6 +103,13 @@ export const useAilockStore = create<AilockStore>((set, get) => ({
             label: 'Analyze Trends',
             icon: 'TrendingUp',
             action: () => console.log('Analyze trends'),
+            category: 'research'
+          },
+          {
+            id: 'find-sources',
+            label: 'Find Sources',
+            icon: 'BookOpen',
+            action: () => console.log('Find sources'),
             category: 'research'
           }
         );
@@ -88,6 +121,13 @@ export const useAilockStore = create<AilockStore>((set, get) => ({
             label: 'Create Intent',
             icon: 'Plus',
             action: () => console.log('Create intent'),
+            category: 'create'
+          },
+          {
+            id: 'brainstorm-ideas',
+            label: 'Brainstorm Ideas',
+            icon: 'Lightbulb',
+            action: () => console.log('Brainstorm ideas'),
             category: 'create'
           },
           {
@@ -113,6 +153,13 @@ export const useAilockStore = create<AilockStore>((set, get) => ({
             label: 'Create Report',
             icon: 'FileBarChart',
             action: () => console.log('Create report'),
+            category: 'analyze'
+          },
+          {
+            id: 'performance-metrics',
+            label: 'Performance Metrics',
+            icon: 'Activity',
+            action: () => console.log('Performance metrics'),
             category: 'analyze'
           }
         );

@@ -6,15 +6,16 @@ import { useSocket } from '../../hooks/useSocket';
 import { Message } from '../../types';
 import { ChatMessage } from './ChatMessage';
 import { TypingIndicator } from './TypingIndicator';
+import { StreamingMessage } from './StreamingMessage';
 import { ContextActions } from './ContextActions';
 
 export const ChatInterface: React.FC = () => {
   const [inputMessage, setInputMessage] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const { messages, isTyping, currentMode } = useAilockStore();
+  const { messages, isTyping, streamingMessage, currentMode } = useAilockStore();
   const { user } = useAuthStore();
-  const { sendMessage } = useSocket();
+  const { sendMessage, sendTyping } = useSocket();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -22,7 +23,7 @@ export const ChatInterface: React.FC = () => {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, isTyping]);
+  }, [messages, isTyping, streamingMessage]);
 
   const handleSendMessage = () => {
     if (!inputMessage.trim() || !user) return;
@@ -35,10 +36,7 @@ export const ChatInterface: React.FC = () => {
       type: 'text'
     };
 
-    // Add message to local state immediately for responsive UI
-    useAilockStore.getState().addMessage(newMessage);
-    
-    // Send message to server via WebSocket
+    // Send message via WebSocket
     sendMessage(newMessage);
     
     setInputMessage('');
@@ -48,6 +46,17 @@ export const ChatInterface: React.FC = () => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
+    }
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setInputMessage(e.target.value);
+    
+    // Send typing indicator
+    if (e.target.value.length > 0) {
+      sendTyping(true);
+    } else {
+      sendTyping(false);
     }
   };
 
@@ -73,7 +82,10 @@ export const ChatInterface: React.FC = () => {
           <ChatMessage key={message.id} message={message} />
         ))}
         
-        {isTyping && <TypingIndicator />}
+        {/* Show streaming message if AI is responding */}
+        {streamingMessage && <StreamingMessage content={streamingMessage} />}
+        
+        {isTyping && !streamingMessage && <TypingIndicator />}
         <div ref={messagesEndRef} />
       </div>
 
@@ -86,7 +98,7 @@ export const ChatInterface: React.FC = () => {
           <div className="flex-1 relative">
             <textarea
               value={inputMessage}
-              onChange={(e) => setInputMessage(e.target.value)}
+              onChange={handleInputChange}
               onKeyPress={handleKeyPress}
               placeholder={`Ask Ailock anything in ${currentMode} mode...`}
               className="w-full resize-none border border-gray-300 rounded-xl px-4 py-3 pr-12 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white/80 backdrop-blur-sm"
