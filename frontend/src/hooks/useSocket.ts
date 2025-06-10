@@ -16,7 +16,7 @@ export const useSocket = () => {
     }
 
     // Initialize socket connection with authentication
-    socket.current = io('https://localhost:3001', {
+    socket.current = io('http://localhost:3001', {
       auth: {
         token: accessToken
       },

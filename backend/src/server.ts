@@ -299,38 +299,53 @@ app.use(errorHandler);
 
 const PORT = process.env.PORT || 3001;
 
+// Validate required environment variables
+function validateEnvironment() {
+  const required = ['DATABASE_URL', 'JWT_SECRET', 'JWT_REFRESH_SECRET'];
+  const missing = required.filter(key => !process.env[key]);
+  
+  if (missing.length > 0) {
+    console.error('❌ Missing required environment variables:');
+    missing.forEach(key => console.error(`   - ${key}`));
+    console.error('');
+    console.error('💡 Create a .env file in the project root with:');
+    console.error('   DATABASE_URL=postgresql://username:password@localhost:5432/ailocks_db');
+    console.error('   JWT_SECRET=your-strong-secret-key');
+    console.error('   JWT_REFRESH_SECRET=your-strong-refresh-secret');
+    console.error('');
+    console.error('📖 See README.md for full setup instructions');
+    process.exit(1);
+  }
+}
+
 // Start server
 async function startServer() {
   try {
     console.log('🔄 Starting Ailocks backend server...');
     
-    // Test database connection with timeout
-    console.log('🗄️  Testing Drizzle database connection...');
-    const timeout = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Database connection timeout')), 10000)
-    );
+    // Validate environment variables
+    validateEnvironment();
     
-    try {
-      await Promise.race([db.execute('SELECT 1'), timeout]);
-      console.log('✅ Database connection successful!');
-    } catch (dbError) {
-      console.warn('⚠️  Database connection failed, continuing without DB:', dbError);
-    }
+    // Test database connection - REQUIRED
+    console.log('🗄️  Testing database connection...');
+    await db.execute('SELECT 1');
+    console.log('✅ Database connection successful!');
     
     server.listen(PORT, () => {
       console.log(`🚀 Ailocks backend server running on port ${PORT}`);
       console.log('📡 Socket.io server ready for authenticated connections');
       console.log('🤖 LLM integration enabled');
-      console.log('🗄️  Database status: attempting connection');
+      console.log('✅ Database connected via Drizzle ORM');
       console.log(`🔗 API available at http://localhost:${PORT}/api`);
     });
     
   } catch (error) {
     console.error('❌ Failed to start server:', error);
-    // Don't exit, try to start anyway
-    server.listen(PORT, () => {
-      console.log(`🚀 Ailocks backend server running on port ${PORT} (degraded mode)`);
-    });
+    console.error('❌ Database connection is required. Please check:');
+    console.error('   1. PostgreSQL is running');
+    console.error('   2. DATABASE_URL is correct in .env file');
+    console.error('   3. Database exists and is accessible');
+    process.exit(1);
   }
 }
 

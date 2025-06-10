@@ -2,8 +2,15 @@ import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import * as schema from '../db/schema';
 
-// Default connection for development
-const DATABASE_URL = process.env.DATABASE_URL || 'postgresql://localhost:5432/ailocks_db';
+const DATABASE_URL = process.env.DATABASE_URL;
+
+if (!DATABASE_URL) {
+  console.error('❌ DATABASE_URL environment variable is not set');
+  console.error('💡 Create a .env file in the project root with:');
+  console.error('   DATABASE_URL=postgresql://username:password@localhost:5432/ailocks_db');
+  console.error('📖 See README.md for full setup instructions');
+  process.exit(1);
+}
 
 const pool = new Pool({
   connectionString: DATABASE_URL,

@@ -63,10 +63,10 @@ export class AilockController {
       }
 
       const session = await this.ailockService.updateSession(userId, updates);
-      res.json(session);
+      return res.json(session);
     } catch (error) {
       console.error('Update session error:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      return res.status(500).json({ error: 'Internal server error' });
     }
   };
 
@@ -194,10 +194,17 @@ export class AilockController {
       }
 
       // Generate context actions
+      const location = userContext?.location ? {
+        city: userContext.location.city || undefined,
+        country: userContext.location.country || undefined,
+        latitude: userContext.location.latitude,
+        longitude: userContext.location.longitude
+      } : undefined;
+      
       const actions = this.actionGenerator.generateActions(
         mode as AilockMode,
         conversationHistory,
-        userContext?.location
+        location
       );
 
       return res.status(200).json({

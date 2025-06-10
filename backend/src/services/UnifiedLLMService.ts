@@ -1,6 +1,5 @@
 import OpenAI from 'openai';
 import axios from 'axios';
-import { createParser } from 'eventsource-parser';
 import { AilockMode } from '../types';
 
 export interface LLMMessage {
@@ -148,68 +147,83 @@ export class UnifiedLLMService {
     mode: AilockMode,
     onStream: (chunk: StreamChunk) => void
   ): Promise<LLMResponse> {
-    const response = await axios({
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
-      url: 'https://openrouter.ai/api/v1/chat/completions',
       headers: {
         'Authorization': `Bearer ${this.openrouterApiKey}`,
         'Content-Type': 'application/json',
         'HTTP-Referer': 'https://ailocks.ai',
         'X-Title': 'Ailocks AI2AI Network'
       },
-      data: {
+      body: JSON.stringify({
         model: this.models[mode],
         messages,
         max_tokens: this.maxTokens,
         temperature: this.temperature,
         stream: true
-      },
-      responseType: 'stream'
+      })
     });
 
-    return new Promise((resolve, reject) => {
-      let fullContent = '';
-      let usage: any = null;
+    if (!response.ok) {
+      throw new Error(`OpenRouter API error: ${response.status}`);
+    }
 
-      const parser = createParser((event) => {
-        if (event.type === 'event') {
-          if (event.data === '[DONE]') {
-            onStream({ content: '', done: true, usage });
-            resolve({
-              content: fullContent,
-              usage,
-              model: this.models[mode],
-              provider: 'openrouter'
-            });
-            return;
-          }
+    const reader = response.body?.getReader();
+    if (!reader) {
+      throw new Error('No response stream available');
+    }
 
-          try {
-            const data = JSON.parse(event.data);
-            const delta = data.choices?.[0]?.delta;
-            
-            if (delta?.content) {
-              fullContent += delta.content;
-              onStream({ content: delta.content, done: false });
+    const decoder = new TextDecoder();
+    let fullContent = '';
+    let usage: any = undefined;
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n');
+
+        for (const line of lines) {
+          if (line.trim() === '') continue;
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6);
+            if (data === '[DONE]') {
+              onStream({ content: '', done: true, usage });
+              break;
             }
 
-            if (data.usage) {
-              usage = data.usage;
+            try {
+              const parsed = JSON.parse(data);
+              const delta = parsed.choices?.[0]?.delta;
+              
+              if (delta?.content) {
+                fullContent += delta.content;
+                onStream({ content: delta.content, done: false });
+              }
+
+              // Capture usage info if present
+              if (parsed.usage) {
+                usage = parsed.usage;
+              }
+            } catch (parseError) {
+              // Skip invalid JSON lines
+              continue;
             }
-          } catch (error) {
-            console.error('Error parsing stream data:', error);
           }
         }
-      });
+      }
+    } finally {
+      reader.releaseLock();
+    }
 
-      response.data.on('data', (chunk: Buffer) => {
-        parser.feed(chunk.toString());
-      });
-
-      response.data.on('error', (error: any) => {
-        reject(error);
-      });
-    });
+    return {
+      content: fullContent,
+      usage,
+      model: this.models[mode],
+      provider: 'openrouter'
+    };
   }
 
   private async streamOpenAI(
@@ -284,8 +298,8 @@ export class UnifiedLLMService {
     });
 
     return {
-      content: response.data.choices[0].message.content || '',
-      usage: response.data.usage,
+      content: response.choices[0].message.content || '',
+      usage: response.usage,
       model: 'gpt-3.5-turbo',
       provider: 'openai'
     };
