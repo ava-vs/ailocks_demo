@@ -84,7 +84,7 @@ export class AuthController {
 
   logout = async (req: Request, res: Response) => {
     try {
-      const userId = (req as any).user?.id;
+      const userId = (req as any).userId;
 
       if (userId) {
         // Update user status to offline
@@ -100,7 +100,7 @@ export class AuthController {
 
   getCurrentUser = async (req: Request, res: Response) => {
     try {
-      const userId = (req as any).user?.id;
+      const userId = (req as any).userId;
 
       if (!userId) {
         return res.status(401).json({ error: 'User not authenticated' });

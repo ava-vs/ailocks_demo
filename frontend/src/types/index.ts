@@ -24,6 +24,11 @@ export interface Message {
     actionType?: string;
     mode?: string;
     sessionId?: string;
+    usage?: any;
+    model?: string;
+    provider?: string;
+    actionId?: string;
+    actionResult?: any;
   };
 }
 

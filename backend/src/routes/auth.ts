@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { AuthController } from '../controllers/AuthController';
 import { validateAuth } from '../middleware/validation';
 import { rateLimiter } from '../middleware/rateLimiter';
+import { authenticateToken } from '../middleware/auth';
 import { body } from 'express-validator';
 import { handleValidationErrors } from '../middleware/validation';
 
@@ -23,8 +24,8 @@ router.post(
   authController.register
 );
 router.post('/login', validateAuth, authController.login);
-router.post('/logout', authController.logout);
+router.post('/logout', authenticateToken, authController.logout);
 router.post('/refresh', authController.refreshToken);
-router.get('/me', authController.getCurrentUser);
+router.get('/me', authenticateToken, authController.getCurrentUser);
 
 export { router as authRoutes };
