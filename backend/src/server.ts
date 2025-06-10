@@ -304,22 +304,33 @@ async function startServer() {
   try {
     console.log('🔄 Starting Ailocks backend server...');
     
-    // Test database connection
+    // Test database connection with timeout
     console.log('🗄️  Testing Drizzle database connection...');
-    await db.execute('SELECT 1');
-    console.log('✅ Database connection successful!');
+    const timeout = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Database connection timeout')), 10000)
+    );
+    
+    try {
+      await Promise.race([db.execute('SELECT 1'), timeout]);
+      console.log('✅ Database connection successful!');
+    } catch (dbError) {
+      console.warn('⚠️  Database connection failed, continuing without DB:', dbError);
+    }
     
     server.listen(PORT, () => {
       console.log(`🚀 Ailocks backend server running on port ${PORT}`);
       console.log('📡 Socket.io server ready for authenticated connections');
       console.log('🤖 LLM integration enabled');
-      console.log('🗄️  Database connected via Drizzle ORM');
+      console.log('🗄️  Database status: attempting connection');
       console.log(`🔗 API available at http://localhost:${PORT}/api`);
     });
     
   } catch (error) {
     console.error('❌ Failed to start server:', error);
-    process.exit(1);
+    // Don't exit, try to start anyway
+    server.listen(PORT, () => {
+      console.log(`🚀 Ailocks backend server running on port ${PORT} (degraded mode)`);
+    });
   }
 }
 
