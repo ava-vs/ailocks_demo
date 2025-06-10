@@ -35,9 +35,73 @@ app.use('/api/chats', chatRoutes);
 app.use('/api/intents', intentRoutes);
 app.use('/api/ailock', ailockRoutes);
 
+// API info endpoint
+app.get('/api', (req, res) => {
+  res.json({
+    name: 'Ailocks AI2AI Network API',
+    version: '1.0.0',
+    status: 'running',
+    timestamp: new Date().toISOString(),
+    endpoints: {
+      authentication: {
+        'POST /api/auth/register': 'Register new user',
+        'POST /api/auth/login': 'Login user',
+        'GET /api/auth/me': 'Get current user',
+        'POST /api/auth/refresh': 'Refresh access token',
+        'POST /api/auth/logout': 'Logout user'
+      },
+      users: {
+        'GET /api/users/profile': 'Get user profile',
+        'PUT /api/users/profile': 'Update user profile',
+        'PUT /api/users/location': 'Update user location',
+        'PUT /api/users/status': 'Update user status',
+        'GET /api/users/nearby': 'Get nearby users'
+      },
+      chats: {
+        'GET /api/chats': 'Get user chats',
+        'POST /api/chats': 'Create new chat',
+        'GET /api/chats/:id': 'Get chat by ID',
+        'PUT /api/chats/:id': 'Update chat',
+        'DELETE /api/chats/:id': 'Delete chat',
+        'GET /api/chats/:id/messages': 'Get chat messages',
+        'POST /api/chats/:id/messages': 'Send message',
+        'POST /api/chats/:id/participants': 'Add participant',
+        'DELETE /api/chats/:id/participants/:userId': 'Remove participant'
+      },
+      intents: {
+        'GET /api/intents': 'Get user intents',
+        'POST /api/intents': 'Create new intent',
+        'GET /api/intents/nearby': 'Get nearby intents',
+        'GET /api/intents/category/:category': 'Get intents by category',
+        'GET /api/intents/:id': 'Get intent by ID',
+        'PUT /api/intents/:id': 'Update intent',
+        'DELETE /api/intents/:id': 'Delete intent',
+        'POST /api/intents/:id/respond': 'Respond to intent'
+      },
+      ailock: {
+        'POST /api/ailock/session': 'Create ailock session',
+        'GET /api/ailock/session': 'Get current session',
+        'PUT /api/ailock/session': 'Update session',
+        'DELETE /api/ailock/session': 'End session',
+        'POST /api/ailock/query': 'Process ailock query',
+        'GET /api/ailock/actions': 'Get context actions',
+        'POST /api/ailock/action/:actionId': 'Execute action'
+      }
+    },
+    documentation: {
+      'GET /api/health': 'Health check endpoint',
+      'GET /api': 'This API information endpoint'
+    }
+  });
+});
+
 // Health check
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  res.json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    service: 'Ailocks API'
+  });
 });
 
 // Socket.io connection handling
