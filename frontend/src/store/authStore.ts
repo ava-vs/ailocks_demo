@@ -35,6 +35,8 @@ interface AuthActions {
 
 interface AuthStore extends AuthState, AuthActions {}
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+
 export const useAuthStore = create<AuthStore>()(
   persist(
     (set, get) => ({
@@ -51,7 +53,7 @@ export const useAuthStore = create<AuthStore>()(
         set({ isLoading: true, error: null });
         
         try {
-          const response = await fetch('http://localhost:3001/api/auth/login', {
+          const response = await fetch(`${API_BASE_URL}/auth/login`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -87,7 +89,7 @@ export const useAuthStore = create<AuthStore>()(
         set({ isLoading: true, error: null });
         
         try {
-          const response = await fetch('http://localhost:3001/api/auth/register', {
+          const response = await fetch(`${API_BASE_URL}/auth/register`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -147,7 +149,7 @@ export const useAuthStore = create<AuthStore>()(
         }
 
         try {
-          const response = await fetch('http://localhost:3001/api/auth/refresh', {
+          const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',

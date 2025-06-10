@@ -1,7 +1,7 @@
 import { useAuthStore } from '../store/authStore';
 
 class ApiService {
-  private baseURL = 'http://localhost:3001/api';
+  private baseURL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
   private async request<T>(
     endpoint: string,
