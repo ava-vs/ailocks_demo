@@ -1,6 +1,7 @@
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { db } from '../models/database';
+import { intents, users } from '../db/schema';
+import { eq, and, or, isNull, gt, sql } from 'drizzle-orm';
+import { v4 as uuidv4 } from 'uuid';
 
 export interface CreateIntentData {
   title: string;
@@ -24,37 +25,35 @@ export interface UpdateIntentData {
 
 export class IntentModel {
   async create(data: CreateIntentData) {
-    return await prisma.intent.create({
-      data,
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            avatar: true,
-            city: true,
-            country: true
-          }
-        }
-      }
-    });
+    const [newIntent] = await db.insert(intents).values({
+      ...data,
+      id: uuidv4()
+    }).returning();
+    
+    const [user] = await db.select({
+        id: users.id,
+        name: users.name,
+        avatar: users.avatar,
+        city: users.city,
+        country: users.country
+    }).from(users).where(eq(users.id, data.userId));
+
+    return { ...newIntent, user };
   }
 
   async findById(id: string) {
-    return await prisma.intent.findUnique({
-      where: { id },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            avatar: true,
-            city: true,
-            country: true
-          }
-        }
-      }
-    });
+    const [intent] = await db.select().from(intents).where(eq(intents.id, id));
+    if (!intent) return null;
+
+    const [user] = await db.select({
+        id: users.id,
+        name: users.name,
+        avatar: users.avatar,
+        city: users.city,
+        country: users.country
+    }).from(users).where(eq(users.id, intent.userId));
+
+    return { ...intent, user };
   }
 
   async findUserIntents(userId: string, filters: {
@@ -62,29 +61,25 @@ export class IntentModel {
     type?: string;
     category?: string;
   } = {}) {
-    const where: any = { userId };
+    let whereConditions = [eq(intents.userId, userId)];
     
-    if (filters.status) where.status = filters.status;
-    if (filters.type) where.type = filters.type;
-    if (filters.category) where.category = filters.category;
+    if (filters.status) whereConditions.push(eq(intents.status, filters.status));
+    if (filters.type) whereConditions.push(eq(intents.type, filters.type));
+    if (filters.category) whereConditions.push(eq(intents.category, filters.category));
 
-    return await prisma.intent.findMany({
-      where,
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            avatar: true,
-            city: true,
-            country: true
-          }
-        }
-      },
-      orderBy: {
-        createdAt: 'desc'
-      }
-    });
+    const intentList = await db.select().from(intents)
+      .where(and(...whereConditions))
+      .orderBy(sql`${intents.createdAt} DESC`);
+
+    const [user] = await db.select({
+        id: users.id,
+        name: users.name,
+        avatar: users.avatar,
+        city: users.city,
+        country: users.country
+    }).from(users).where(eq(users.id, userId));
+
+    return intentList.map(intent => ({ ...intent, user }));
   }
 
   async findNearbyIntents(userId: string, filters: {
@@ -92,128 +87,123 @@ export class IntentModel {
     type?: string;
     category?: string;
   } = {}) {
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { latitude: true, longitude: true }
-    });
+    const [user] = await db.select().from(users).where(eq(users.id, userId));
 
     if (!user?.latitude || !user?.longitude) {
       return [];
     }
 
-    const where: any = {
-      AND: [
-        { userId: { not: userId } },
-        { status: 'active' },
-        {
-          OR: [
-            { expiresAt: null },
-            { expiresAt: { gt: new Date() } }
-          ]
-        }
-      ]
-    };
+    let whereConditions = [
+        sql`${intents.userId} != ${userId}`,
+        eq(intents.status, 'active'),
+        or(
+            isNull(intents.expiresAt),
+            gt(intents.expiresAt, new Date())
+        )
+    ];
 
-    if (filters.type) where.AND.push({ type: filters.type });
-    if (filters.category) where.AND.push({ category: filters.category });
+    if (filters.type) whereConditions.push(eq(intents.type, filters.type));
+    if (filters.category) whereConditions.push(eq(intents.category, filters.category));
 
-    const intents = await prisma.intent.findMany({
-      where,
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            avatar: true,
-            latitude: true,
-            longitude: true,
-            city: true,
-            country: true
-          }
-        }
-      },
-      orderBy: {
-        createdAt: 'desc'
-      }
-    });
+    const intentList = await db.select().from(intents)
+      .where(and(...whereConditions))
+      .orderBy(sql`${intents.createdAt} DESC`);
+
+    // Get all unique user IDs
+    const userIds = [...new Set(intentList.map(i => i.userId))];
+    
+    // Fetch all users in one query
+    const intentUsers = await db.select({
+        id: users.id,
+        name: users.name,
+        avatar: users.avatar,
+        latitude: users.latitude,
+        longitude: users.longitude,
+        city: users.city,
+        country: users.country
+    }).from(users).where(sql`${users.id} = ANY(${userIds})`);
+
+    // Create a map for quick lookup
+    const userMap = new Map(intentUsers.map(u => [u.id, u]));
+
+    const intentsWithUsers = intentList.map(intent => ({
+        ...intent,
+        user: userMap.get(intent.userId)
+    }));
 
     // Filter by distance if radius is specified
     if (filters.radius) {
-      return intents.filter(intent => {
-        if (!intent.user.latitude || !intent.user.longitude) return false;
+      return intentsWithUsers.filter(intent => {
+        const intentUser = intent.user;
+        if (!intentUser?.latitude || !intentUser?.longitude) return false;
         const distance = this.calculateDistance(
           user.latitude!,
           user.longitude!,
-          intent.user.latitude,
-          intent.user.longitude
+          intentUser.latitude,
+          intentUser.longitude
         );
         return distance <= filters.radius!;
       });
     }
 
-    return intents;
+    return intentsWithUsers;
   }
 
   async findByCategory(category: string, page: number = 1, limit: number = 20) {
-    const skip = (page - 1) * limit;
+    const offset = (page - 1) * limit;
 
-    return await prisma.intent.findMany({
-      where: {
-        AND: [
-          { category },
-          { status: 'active' },
-          {
-            OR: [
-              { expiresAt: null },
-              { expiresAt: { gt: new Date() } }
-            ]
-          }
-        ]
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            avatar: true,
-            city: true,
-            country: true
-          }
-        }
-      },
-      orderBy: {
-        createdAt: 'desc'
-      },
-      skip,
-      take: limit
-    });
+    const intentList = await db.select().from(intents)
+      .where(and(
+        eq(intents.category, category),
+        eq(intents.status, 'active'),
+        or(
+            isNull(intents.expiresAt),
+            gt(intents.expiresAt, new Date())
+        )
+      ))
+      .orderBy(sql`${intents.createdAt} DESC`)
+      .limit(limit)
+      .offset(offset);
+
+    // Get all unique user IDs
+    const userIds = [...new Set(intentList.map(i => i.userId))];
+    
+    // Fetch all users in one query
+    const intentUsers = await db.select({
+        id: users.id,
+        name: users.name,
+        avatar: users.avatar,
+        city: users.city,
+        country: users.country
+    }).from(users).where(sql`${users.id} = ANY(${userIds})`);
+
+    // Create a map for quick lookup
+    const userMap = new Map(intentUsers.map(u => [u.id, u]));
+
+    return intentList.map(intent => ({
+        ...intent,
+        user: userMap.get(intent.userId)
+    }));
   }
 
   async update(id: string, data: UpdateIntentData) {
-    return await prisma.intent.update({
-      where: { id },
-      data
-    });
+    const [updatedIntent] = await db.update(intents).set(data).where(eq(intents.id, id)).returning();
+    return updatedIntent;
   }
 
   async delete(id: string) {
-    return await prisma.intent.delete({
-      where: { id }
-    });
+    const [deletedIntent] = await db.delete(intents).where(eq(intents.id, id)).returning();
+    return deletedIntent;
   }
 
   async markAsCompleted(id: string) {
-    return await prisma.intent.update({
-      where: { id },
-      data: { status: 'completed' }
-    });
+    const [updatedIntent] = await db.update(intents).set({ status: 'completed' }).where(eq(intents.id, id)).returning();
+    return updatedIntent;
   }
 
   async markAsCancelled(id: string) {
-    return await prisma.intent.update({
-      where: { id },
-      data: { status: 'cancelled' }
-    });
+    const [updatedIntent] = await db.update(intents).set({ status: 'cancelled' }).where(eq(intents.id, id)).returning();
+    return updatedIntent;
   }
 
   private calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {

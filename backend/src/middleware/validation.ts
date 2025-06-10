@@ -9,7 +9,7 @@ export const handleValidationErrors = (req: Request, res: Response, next: NextFu
       details: errors.array()
     });
   }
-  next();
+  return next();
 };
 
 export const validateAuth = [

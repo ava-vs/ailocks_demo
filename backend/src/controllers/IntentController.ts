@@ -34,13 +34,13 @@ export class IntentController {
         category,
         location,
         userId,
-        expiresAt: expiresAt ? new Date(expiresAt) : null
+        expiresAt: expiresAt ? new Date(expiresAt) : undefined
       });
 
-      res.status(201).json(intent);
+      return res.status(201).json(intent);
     } catch (error) {
       console.error('Create intent error:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      return res.status(500).json({ error: 'Internal server error' });
     }
   };
 
@@ -71,10 +71,10 @@ export class IntentController {
         return res.status(404).json({ error: 'Intent not found' });
       }
 
-      res.json(intent);
+      return res.json(intent);
     } catch (error) {
       console.error('Get intent error:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      return res.status(500).json({ error: 'Internal server error' });
     }
   };
 

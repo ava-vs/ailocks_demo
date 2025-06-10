@@ -45,10 +45,10 @@ export class ChatController {
         return res.status(404).json({ error: 'Chat not found' });
       }
 
-      res.json(chat);
+      return res.json(chat);
     } catch (error) {
       console.error('Get chat error:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      return res.status(500).json({ error: 'Internal server error' });
     }
   };
 
@@ -110,13 +110,13 @@ export class ChatController {
         type,
         senderId: userId,
         chatId,
-        metadata: metadata ? JSON.stringify(metadata) : null
+        metadata: metadata ? JSON.stringify(metadata) : undefined
       });
 
-      res.status(201).json(message);
+      return res.status(201).json(message);
     } catch (error) {
       console.error('Send message error:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      return res.status(500).json({ error: 'Internal server error' });
     }
   };
 

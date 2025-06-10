@@ -13,7 +13,7 @@ export class UserController {
         return res.status(404).json({ error: 'User not found' });
       }
 
-      res.json({
+      return res.json({
         id: user.id,
         name: user.name,
         email: user.email,
@@ -29,7 +29,7 @@ export class UserController {
       });
     } catch (error) {
       console.error('Get profile error:', error);
-      res.status(500).json({ error: 'Internal server error' });
+      return res.status(500).json({ error: 'Internal server error' });
     }
   };
 

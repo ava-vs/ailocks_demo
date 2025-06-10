@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
-import { UserModel } from '../models/User';
+import { UserModel, CreateUserData } from '../models/User';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'your-refresh-secret';
@@ -10,27 +10,41 @@ const JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || '7d';
 export class AuthService {
   private userModel = new UserModel();
 
+  async findUserByEmail(email: string) {
+    return await this.userModel.findByEmail(email);
+  }
+
+  async findUserById(id: string) {
+    return await this.userModel.findById(id);
+  }
+
+  async createUser(data: CreateUserData) {
+    const hashedPassword = await this.hashPassword(data.password);
+    return await this.userModel.create({
+      ...data,
+      password: hashedPassword
+    });
+  }
+
+  async updateUserStatus(userId: string, status: string) {
+    return await this.userModel.update(userId, { status });
+  }
+
+  async validatePassword(password: string, hashedPassword: string): Promise<boolean> {
+    return await this.comparePassword(password, hashedPassword);
+  }
+
   async validateUser(email: string, password: string) {
     const user = await this.userModel.findByEmail(email);
     if (!user) return null;
 
-    // For demo purposes, we'll skip password hashing
-    // In production, use: const isValid = await bcrypt.compare(password, user.password);
-    return user;
+    const isValid = await this.comparePassword(password, user.password);
+    return isValid ? user : null;
   }
 
   async generateTokens(userId: string) {
-    const accessToken = jwt.sign(
-      { userId },
-      JWT_SECRET,
-      { expiresIn: JWT_EXPIRES_IN }
-    );
-
-    const refreshToken = jwt.sign(
-      { userId },
-      JWT_REFRESH_SECRET,
-      { expiresIn: JWT_REFRESH_EXPIRES_IN }
-    );
+    const accessToken = jwt.sign({ userId }, JWT_SECRET);
+    const refreshToken = jwt.sign({ userId }, JWT_REFRESH_SECRET);
 
     return {
       accessToken,

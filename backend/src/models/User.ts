@@ -1,4 +1,7 @@
-import { database } from './database';
+import { db } from '../models/database';
+import { users } from '../db/schema';
+import { eq, and, not, isNotNull } from 'drizzle-orm';
+import { v4 as uuidv4 } from 'uuid';
 
 export interface CreateUserData {
   name: string;
@@ -19,40 +22,26 @@ export interface UpdateUserData {
 
 export class UserModel {
   async create(data: CreateUserData) {
-    return await database.client.user.create({
-      data,
-    });
+    const [newUser] = await db.insert(users).values({
+      ...data,
+      id: uuidv4()
+    }).returning();
+    return newUser;
   }
 
   async findById(id: string) {
-    return await database.client.user.findUnique({
-      where: { id },
-      include: {
-        chatParticipants: {
-          include: {
-            chat: true
-          }
-        },
-        intents: {
-          where: {
-            status: 'active'
-          }
-        }
-      }
-    });
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
   }
 
   async findByEmail(email: string) {
-    return await database.client.user.findUnique({
-      where: { email }
-    });
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user;
   }
 
   async update(id: string, data: UpdateUserData) {
-    return await database.client.user.update({
-      where: { id },
-      data
-    });
+    const [updatedUser] = await db.update(users).set(data).where(eq(users.id, id)).returning();
+    return updatedUser;
   }
 
   async updateLocation(id: string, location: {
@@ -61,15 +50,13 @@ export class UserModel {
     city?: string;
     country?: string;
   }) {
-    return await database.client.user.update({
-      where: { id },
-      data: {
-        latitude: location.latitude,
-        longitude: location.longitude,
-        city: location.city,
-        country: location.country
-      }
-    });
+    const [updatedUser] = await db.update(users).set({
+      latitude: location.latitude,
+      longitude: location.longitude,
+      city: location.city,
+      country: location.country
+    }).where(eq(users.id, id)).returning();
+    return updatedUser;
   }
 
   async findNearby(userId: string, radiusKm: number) {
@@ -78,30 +65,24 @@ export class UserModel {
       return [];
     }
 
-    // Simple distance calculation (for production, use PostGIS or similar)
-    const users = await database.client.user.findMany({
-      where: {
-        AND: [
-          { id: { not: userId } },
-          { latitude: { not: null } },
-          { longitude: { not: null } },
-          { status: { not: 'offline' } }
-        ]
-      },
-      select: {
-        id: true,
-        name: true,
-        avatar: true,
-        latitude: true,
-        longitude: true,
-        city: true,
-        country: true,
-        status: true
-      }
-    });
+    const allUsers = await db.select({
+        id: users.id,
+        name: users.name,
+        avatar: users.avatar,
+        latitude: users.latitude,
+        longitude: users.longitude,
+        city: users.city,
+        country: users.country,
+        status: users.status,
+    }).from(users).where(and(
+        not(eq(users.id, userId)),
+        isNotNull(users.latitude),
+        isNotNull(users.longitude),
+        not(eq(users.status, 'offline'))
+    ));
 
     // Filter by distance (simplified calculation)
-    return users.filter(u => {
+    return allUsers.filter(u => {
       if (!u.latitude || !u.longitude) return false;
       const distance = this.calculateDistance(
         user.latitude!,
@@ -129,8 +110,7 @@ export class UserModel {
   }
 
   async delete(id: string) {
-    return await database.client.user.delete({
-      where: { id }
-    });
+    const [deletedUser] = await db.delete(users).where(eq(users.id, id)).returning();
+    return deletedUser;
   }
 }

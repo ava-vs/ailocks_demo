@@ -1,6 +1,6 @@
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { db } from '../models/database';
+import { ailockSessions } from '../db/schema';
+import { eq, and, sql } from 'drizzle-orm';
 
 export interface CreateSessionData {
   userId: string;
@@ -20,27 +20,27 @@ export class AilockService {
     // End any existing active sessions
     await this.endSession(data.userId);
 
-    return await prisma.ailockSession.create({
-      data: {
-        userId: data.userId,
-        mode: data.mode,
-        location: data.location,
-        contextData: data.contextData,
-        isActive: true
-      }
-    });
+    const [newSession] = await db.insert(ailockSessions).values({
+      userId: data.userId,
+      mode: data.mode,
+      location: data.location,
+      contextData: data.contextData,
+      isActive: true
+    }).returning();
+
+    return newSession;
   }
 
   async getCurrentSession(userId: string) {
-    return await prisma.ailockSession.findFirst({
-      where: {
-        userId,
-        isActive: true
-      },
-      orderBy: {
-        createdAt: 'desc'
-      }
-    });
+    const [session] = await db.select().from(ailockSessions)
+      .where(and(
+        eq(ailockSessions.userId, userId),
+        eq(ailockSessions.isActive, true)
+      ))
+      .orderBy(sql`${ailockSessions.createdAt} DESC`)
+      .limit(1);
+
+    return session;
   }
 
   async updateSession(userId: string, updates: Partial<CreateSessionData>) {
@@ -49,25 +49,21 @@ export class AilockService {
       throw new Error('No active session found');
     }
 
-    return await prisma.ailockSession.update({
-      where: { id: session.id },
-      data: {
-        ...updates,
-        lastActivity: new Date()
-      }
-    });
+    const [updatedSession] = await db.update(ailockSessions).set({
+      ...updates,
+      lastActivity: new Date()
+    }).where(eq(ailockSessions.id, session.id)).returning();
+
+    return updatedSession;
   }
 
   async endSession(userId: string) {
-    await prisma.ailockSession.updateMany({
-      where: {
-        userId,
-        isActive: true
-      },
-      data: {
-        isActive: false
-      }
-    });
+    await db.update(ailockSessions).set({
+      isActive: false
+    }).where(and(
+      eq(ailockSessions.userId, userId),
+      eq(ailockSessions.isActive, true)
+    ));
   }
 
   async processQuery(userId: string, data: QueryData) {
@@ -77,10 +73,9 @@ export class AilockService {
     }
 
     // Update session activity
-    await prisma.ailockSession.update({
-      where: { id: session.id },
-      data: { lastActivity: new Date() }
-    });
+    await db.update(ailockSessions).set({
+      lastActivity: new Date()
+    }).where(eq(ailockSessions.id, session.id));
 
     // Generate AI response based on mode and query
     const response = await this.generateAIResponse(data.query, data.mode, data.context);
@@ -119,10 +114,9 @@ export class AilockService {
     const result = await this.performAction(actionId, parameters, session);
 
     // Update session activity
-    await prisma.ailockSession.update({
-      where: { id: session.id },
-      data: { lastActivity: new Date() }
-    });
+    await db.update(ailockSessions).set({
+      lastActivity: new Date()
+    }).where(eq(ailockSessions.id, session.id));
 
     return result;
   }

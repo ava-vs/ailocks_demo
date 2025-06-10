@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
-import { database } from './models/database';
+import { db } from './models/database';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 
 // Import routes
@@ -65,18 +65,20 @@ app.use(errorHandler);
 
 const PORT = process.env.PORT || 3001;
 
-// Initialize database and start server
+// Start server
 async function startServer() {
   try {
     console.log('🔄 Starting Ailocks backend server...');
     
-    // Initialize database connection (with fallback)
-    await database.initialize();
+    // Test database connection
+    console.log('🗄️  Testing Drizzle database connection...');
+    await db.execute('SELECT 1');
+    console.log('✅ Database connection successful!');
     
     server.listen(PORT, () => {
       console.log(`🚀 Ailocks backend server running on port ${PORT}`);
       console.log('📡 Socket.io server ready for authenticated connections');
-      console.log('🗄️  Database connected via Prisma');
+      console.log('🗄️  Database connected via Drizzle ORM');
       console.log(`🔗 API available at http://localhost:${PORT}/api`);
     });
     
@@ -90,7 +92,6 @@ async function startServer() {
 process.on('SIGINT', async () => {
   console.log('📴 Shutting down server...');
   try {
-    await database.disconnect();
     server.close(() => {
       console.log('✅ Server shutdown complete');
       process.exit(0);

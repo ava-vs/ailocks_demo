@@ -1,29 +1,53 @@
 {
   "name": "ailocks-ai2ai-network",
-  "private": true,
   "version": "1.0.0",
-  "type": "module",
+  "description": "Ailocks: AI2AI Network - Demo Application",
+  "private": true,
   "workspaces": [
-    "frontend",
-    "backend"
+    "backend",
+    "frontend"
   ],
   "scripts": {
-    "dev": "npm run generate -w backend && npm run dev -w backend & npm run dev -w frontend",
-    "build": "npm run build -w backend && npm run build -w frontend",
-    "start:backend": "npm run start -w backend",
-    "start:frontend": "npm run preview -w frontend",
-    "generate": "npm run generate -w backend",
-    "migrate": "npm run migrate -w backend",
-    "db:push": "npm run generate -w backend && npm run db:push -w backend",
-    "studio": "npm run studio -w backend",    
-    "diagnostics": "npm run diagnostics -w backend",
-    "lint": "npm run lint -w frontend && npm run lint -w backend"
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "build": "npm run build:backend && npm run build:frontend",
+    "build:backend": "cd backend && npm run build",
+    "build:frontend": "cd frontend && npm run build",
+    "start": "cd backend && npm start",
+    "db:generate": "cd backend && npm run db:generate",
+    "db:push": "cd backend && npm run db:push",
+    "db:migrate": "cd backend && npm run db:migrate",
+    "db:studio": "cd backend && npm run db:studio",
+    "test": "npm run test:backend && npm run test:frontend",
+    "test:backend": "cd backend && npm test",
+    "test:frontend": "cd frontend && npm test",
+    "lint": "npm run lint:backend && npm run lint:frontend",
+    "lint:backend": "cd backend && npm run lint",
+    "lint:frontend": "cd frontend && npm run lint",
+    "clean": "rm -rf backend/dist backend/drizzle frontend/dist node_modules backend/node_modules frontend/node_modules"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2",
-    "prisma": "^6.9.0"
+    "concurrently": "^8.2.2"
   },
-  "dependencies": {
-    "@prisma/client": "^6.9.0"
-  }
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ava-vs/ailocks-demo.git"
+  },
+  "keywords": [
+    "ai",
+    "assistant",
+    "chat",
+    "typescript",
+    "react",
+    "express",
+    "drizzle",
+    "postgresql"
+  ],
+  "author": "aVa lab",
+  "license": "MIT"
 }
