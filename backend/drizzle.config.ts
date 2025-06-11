@@ -1,10 +1,7 @@
 import type { Config } from 'drizzle-kit';
-import * as dotenv from 'dotenv';
-import path from 'path';
+import config from './src/config';
 
-dotenv.config({ path: path.resolve(__dirname, '../.env') });
-
-const DATABASE_URL = process.env.DATABASE_URL;
+const DATABASE_URL = config.database.url;
 
 if (!DATABASE_URL) {
   console.error('❌ DATABASE_URL environment variable is not set');
@@ -19,7 +16,7 @@ export default {
   out: './drizzle',
   dialect: 'postgresql',
   dbCredentials: {
-    url: DATABASE_URL,
+    url: DATABASE_URL!,
   },
   verbose: true,
   strict: true,

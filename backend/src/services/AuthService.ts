@@ -1,11 +1,11 @@
-import jwt from 'jsonwebtoken';
+import { db } from '../models/database';
+import { users } from '../db/schema';
+import { eq } from 'drizzle-orm';
+import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 import { UserModel, CreateUserData } from '../models/User';
-
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
-const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'your-refresh-secret';
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '15m';
-const JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || '7d';
+import config from '../config';
 
 export class AuthService {
   private userModel = new UserModel();
@@ -31,54 +31,51 @@ export class AuthService {
   }
 
   async validatePassword(password: string, hashedPassword: string): Promise<boolean> {
-    return await this.comparePassword(password, hashedPassword);
+    return bcrypt.compare(password, hashedPassword);
   }
 
   async validateUser(email: string, password: string) {
     const user = await this.userModel.findByEmail(email);
     if (!user) return null;
 
-    const isValid = await this.comparePassword(password, user.password);
+    const isValid = await bcrypt.compare(password, user.password);
     return isValid ? user : null;
   }
 
-  async generateTokens(userId: string) {
-    const accessToken = jwt.sign({ userId }, JWT_SECRET);
-    const refreshToken = jwt.sign({ userId }, JWT_REFRESH_SECRET);
-
-    return {
-      accessToken,
-      refreshToken,
-      expiresIn: JWT_EXPIRES_IN
+  async generateTokens(user: { id: string, name: string | null, email: string }) {
+    const payload = { 
+      userId: user.id,
+      name: user.name,
+      email: user.email
     };
+    const accessToken = jwt.sign(payload, config.jwt.secret, { expiresIn: '15m' });
+    const refreshToken = jwt.sign({ userId: user.id }, config.jwt.refreshSecret, { expiresIn: '7d' });
+    return { accessToken, refreshToken };
   }
 
   async refreshTokens(refreshToken: string) {
     try {
-      const decoded = jwt.verify(refreshToken, JWT_REFRESH_SECRET) as any;
-      return await this.generateTokens(decoded.userId);
+      const decoded = jwt.verify(refreshToken, config.jwt.refreshSecret) as any;
+      if (!decoded.userId) {
+        throw new Error('Invalid refresh token');
+      }
+
+      const accessToken = jwt.sign({ userId: decoded.userId }, config.jwt.secret, { expiresIn: '15m' });
+      return { accessToken };
     } catch (error) {
-      throw new Error('Invalid refresh token');
+      throw new Error('Invalid or expired refresh token');
     }
   }
 
   async revokeToken(refreshToken: string) {
-    // In production, store revoked tokens in Redis or database
-    // For now, we'll just validate the token
-    try {
-      jwt.verify(refreshToken, JWT_REFRESH_SECRET);
-      return true;
-    } catch (error) {
-      return false;
-    }
+    // In a real app, you would add the token to a blacklist (e.g., in Redis)
+    // For this demo, we'll just log it.
+    console.log(`Token revoked (simulation): ${refreshToken}`);
+    return Promise.resolve();
   }
 
   async hashPassword(password: string): Promise<string> {
     const saltRounds = 12;
     return await bcrypt.hash(password, saltRounds);
-  }
-
-  async comparePassword(password: string, hashedPassword: string): Promise<boolean> {
-    return await bcrypt.compare(password, hashedPassword);
   }
 }

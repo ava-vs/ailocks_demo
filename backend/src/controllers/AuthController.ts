@@ -25,7 +25,11 @@ export class AuthController {
         password
       });
 
-      const tokens = await this.authService.generateTokens(user.id);
+      const tokens = await this.authService.generateTokens({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+      });
 
       return res.status(201).json({
         user: {
@@ -64,7 +68,11 @@ export class AuthController {
       // Update user status to online
       await this.authService.updateUserStatus(user.id, 'online');
 
-      const tokens = await this.authService.generateTokens(user.id);
+      const tokens = await this.authService.generateTokens({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+      });
 
       return res.json({
         user: {

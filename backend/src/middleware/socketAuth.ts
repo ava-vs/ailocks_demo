@@ -1,8 +1,7 @@
 import jwt from 'jsonwebtoken';
 import { Socket } from 'socket.io';
 import { ExtendedError } from 'socket.io/dist/namespace';
-
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+import config from '../config';
 
 export interface AuthenticatedSocket extends Socket {
   userId?: string;
@@ -21,7 +20,7 @@ export const socketAuthMiddleware = (socket: AuthenticatedSocket, next: (err?: E
       return next(new Error('Authentication token required'));
     }
 
-    const decoded = jwt.verify(token, JWT_SECRET) as any;
+    const decoded = jwt.verify(token, config.jwt.secret) as any;
     socket.userId = decoded.userId;
     socket.user = {
       id: decoded.userId,

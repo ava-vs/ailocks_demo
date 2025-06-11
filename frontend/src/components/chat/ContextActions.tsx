@@ -3,8 +3,9 @@ import * as LucideIcons from 'lucide-react';
 import { useAilockStore } from '../../store/ailockStore';
 import { useSocket } from '../../hooks/useSocket';
 
-export const ContextActions: React.FC = () => {
-  const { contextActions, currentMode } = useAilockStore();
+export const ContextActions: React.FC = React.memo(() => {
+  const contextActions = useAilockStore(state => state.contextActions);
+  const currentMode = useAilockStore(state => state.currentMode);
   const { executeAction } = useSocket();
 
   if (contextActions.length === 0) return null;
@@ -54,4 +55,4 @@ export const ContextActions: React.FC = () => {
       </div>
     </div>
   );
-};
+});

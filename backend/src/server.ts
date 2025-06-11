@@ -4,6 +4,7 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import jwt from 'jsonwebtoken';
 import { db } from './models/database';
+import config, { validateEnvironment } from './config';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { socketAuthMiddleware, AuthenticatedSocket } from './middleware/socketAuth';
 import { ChatMessageService } from './services/ChatMessageService';
@@ -20,7 +21,7 @@ const app = express();
 const server = createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: process.env.NODE_ENV === 'production' ? false : process.env.FRONTEND_URL || "http://localhost:5173",
+    origin: config.env === 'production' ? false : config.frontendUrl,
     methods: ["GET", "POST"],
     credentials: true
   }
@@ -32,7 +33,7 @@ const actionGenerator = new ContextualActionGenerator();
 
 // Middleware
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' ? false : process.env.FRONTEND_URL || "http://localhost:5173",
+  origin: config.env === 'production' ? false : config.frontendUrl,
   credentials: true
 }));
 app.use(express.json());
@@ -297,26 +298,7 @@ io.on('connection', (socket: AuthenticatedSocket) => {
 app.use(notFoundHandler);
 app.use(errorHandler);
 
-const PORT = process.env.PORT || 3001;
-
-// Validate required environment variables
-function validateEnvironment() {
-  const required = ['DATABASE_URL', 'JWT_SECRET', 'JWT_REFRESH_SECRET'];
-  const missing = required.filter(key => !process.env[key]);
-  
-  if (missing.length > 0) {
-    console.error('❌ Missing required environment variables:');
-    missing.forEach(key => console.error(`   - ${key}`));
-    console.error('');
-    console.error('💡 Create a .env file in the project root with:');
-    console.error('   DATABASE_URL=postgresql://username:password@localhost:5432/ailocks_db');
-    console.error('   JWT_SECRET=your-strong-secret-key');
-    console.error('   JWT_REFRESH_SECRET=your-strong-refresh-secret');
-    console.error('');
-    console.error('📖 See README.md for full setup instructions');
-    process.exit(1);
-  }
-}
+const PORT = config.port;
 
 // Start server
 async function startServer() {

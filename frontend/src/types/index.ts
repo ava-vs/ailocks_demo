@@ -71,6 +71,7 @@ export interface ContextAction {
   id: string;
   label: string;
   icon: string;
+  description?: string;
   action: () => void;
   category: 'research' | 'create' | 'analyze';
 }
