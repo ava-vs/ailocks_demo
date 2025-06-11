@@ -17,9 +17,15 @@ const config = {
   
   database: {
     url: process.env.DATABASE_URL,
+    directUrl: process.env.DIRECT_URL,
   },
 
   frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173',
+
+  supabase: {
+    url: process.env.VITE_SUPABASE_URL,
+    anonKey: process.env.VITE_SUPABASE_ANON_KEY,
+  },
 
   openAI: {
     apiKey: process.env.OPENAI_API_KEY,
@@ -35,9 +41,9 @@ const config = {
     maxTokens: parseInt(process.env.MAX_TOKENS || '1000', 10),
     temperature: parseFloat(process.env.LLM_TEMPERATURE || '0.7'),
     models: {
-      researcher: process.env.LLM_MODEL_RESEARCHER || 'anthropic/claude-3-haiku',
-      creator: process.env.LLM_MODEL_CREATOR || 'anthropic/claude-3-haiku',
-      analyst: process.env.LLM_MODEL_ANALYST || 'anthropic/claude-3-haiku',
+      researcher: process.env.LLM_MODEL_RESEARCHER || 'deepseek/deepseek-r1-0528:free',
+      creator: process.env.LLM_MODEL_CREATOR || 'deepseek/deepseek-r1-0528-qwen3-8b:free',
+      analyst: process.env.LLM_MODEL_ANALYST || 'deepseek/deepseek-r1-0528:free',
     }
   }
 };
@@ -47,9 +53,20 @@ export function validateEnvironment() {
   
   if (!config.database.url) {
     console.error('❌ DATABASE_URL environment variable is not set');
-    console.error('💡 Create a .env file in the project root with:');
-    console.error('   DATABASE_URL=postgresql://username:password@localhost:5432/ailocks_db');
-    console.error('📖 See README.md for full setup instructions');
+    console.error('💡 For Supabase integration, set DATABASE_URL to your Supabase connection string:');
+    console.error('   DATABASE_URL=postgresql://postgres:[YOUR-PASSWORD]@db.[YOUR-PROJECT-REF].supabase.co:5432/postgres');
+    console.error('📖 You can find this in your Supabase project settings under Database > Connection string');
+    process.exit(1);
+  }
+
+  // Check if DATABASE_URL is still the placeholder
+  if (config.database.url.includes('username:password@hostname:port')) {
+    console.error('❌ DATABASE_URL is still set to placeholder values');
+    console.error('💡 Please update DATABASE_URL with your actual Supabase connection string:');
+    console.error('   1. Go to your Supabase project dashboard');
+    console.error('   2. Navigate to Settings > Database');
+    console.error('   3. Copy the connection string and replace [YOUR-PASSWORD] with your actual password');
+    console.error('   4. Update the DATABASE_URL in your .env file');
     process.exit(1);
   }
 
@@ -91,7 +108,8 @@ export function validateEnvironment() {
   console.log(`📊 Configuration summary:`);
   console.log(`   - Environment: ${config.env}`);
   console.log(`   - Port: ${config.port}`);
-  console.log(`   - Database: ${config.database.url ? 'Configured' : 'Not configured'}`);
+  console.log(`   - Database: ${config.database.url ? 'Configured (Supabase)' : 'Not configured'}`);
+  console.log(`   - Supabase URL: ${config.supabase.url ? 'Configured' : 'Not configured'}`);
   console.log(`   - LLM Provider: ${config.llm.defaultProvider}`);
   console.log(`   - Streaming: ${config.llm.enableStreaming ? 'Enabled' : 'Disabled'}`);
 }
