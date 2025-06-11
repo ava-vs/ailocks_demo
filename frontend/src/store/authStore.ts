@@ -35,7 +35,17 @@ interface AuthActions {
 
 interface AuthStore extends AuthState, AuthActions {}
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+const getApiBaseUrl = (): string => {
+  // Check if we have VITE_API_URL environment variable
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+  
+  // Fallback to localhost for development
+  return 'http://localhost:3001/api';
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 export const useAuthStore = create<AuthStore>()(
   persist(
@@ -53,6 +63,8 @@ export const useAuthStore = create<AuthStore>()(
         set({ isLoading: true, error: null });
         
         try {
+          console.log('Attempting login to:', `${API_BASE_URL}/auth/login`);
+          
           const response = await fetch(`${API_BASE_URL}/auth/login`, {
             method: 'POST',
             headers: {
@@ -62,8 +74,8 @@ export const useAuthStore = create<AuthStore>()(
           });
 
           if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Login failed');
+            const errorData = await response.json().catch(() => ({ error: 'Network error' }));
+            throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
           }
 
           const data = await response.json();
@@ -77,9 +89,18 @@ export const useAuthStore = create<AuthStore>()(
             error: null,
           });
         } catch (error) {
+          console.error('Login error:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Login failed';
+          
+          // Provide more helpful error messages
+          let userFriendlyError = errorMessage;
+          if (errorMessage.includes('Failed to fetch') || errorMessage.includes('Network error')) {
+            userFriendlyError = 'Unable to connect to server. Please check if the backend is running on http://localhost:3001';
+          }
+          
           set({
             isLoading: false,
-            error: error instanceof Error ? error.message : 'Login failed',
+            error: userFriendlyError,
           });
           throw error;
         }
@@ -89,6 +110,8 @@ export const useAuthStore = create<AuthStore>()(
         set({ isLoading: true, error: null });
         
         try {
+          console.log('Attempting registration to:', `${API_BASE_URL}/auth/register`);
+          
           const response = await fetch(`${API_BASE_URL}/auth/register`, {
             method: 'POST',
             headers: {
@@ -98,8 +121,8 @@ export const useAuthStore = create<AuthStore>()(
           });
 
           if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Registration failed');
+            const errorData = await response.json().catch(() => ({ error: 'Network error' }));
+            throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
           }
 
           const data = await response.json();
@@ -113,9 +136,18 @@ export const useAuthStore = create<AuthStore>()(
             error: null,
           });
         } catch (error) {
+          console.error('Registration error:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Registration failed';
+          
+          // Provide more helpful error messages
+          let userFriendlyError = errorMessage;
+          if (errorMessage.includes('Failed to fetch') || errorMessage.includes('Network error')) {
+            userFriendlyError = 'Unable to connect to server. Please check if the backend is running on http://localhost:3001';
+          }
+          
           set({
             isLoading: false,
-            error: error instanceof Error ? error.message : 'Registration failed',
+            error: userFriendlyError,
           });
           throw error;
         }
