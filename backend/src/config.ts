@@ -1,8 +1,31 @@
+import fs from 'fs';
 import dotenv from 'dotenv';
 import path from 'path';
 
-// Load .env file from the project root (located one level up from the backend directory)
-dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+// --- Robust .env loader ----------------------------------------------------
+// We try several locations so that the app works the same way
+// when started from `src` (tsx), from `dist` (compiled), or in Docker.
+// Loading stops after the first existing file is found.
+// ---------------------------------------------------------------------------
+const envCandidates = [
+  // ../../.env   -> works when __dirname is backend/src or backend/dist
+  path.resolve(__dirname, '../../.env'),
+  // ../.env      -> works when __dirname is backend/src OR server launched from backend/
+  path.resolve(__dirname, '../.env'),
+  // Project root when cwd is backend (npm start from backend)
+  path.resolve(process.cwd(), '../.env'),
+  // Root of monorepo when cwd is repository root
+  path.resolve(process.cwd(), '.env'),
+];
+
+for (const envPath of envCandidates) {
+  if (fs.existsSync(envPath)) {
+    dotenv.config({ path: envPath });
+    break;
+  }
+}
+
+// ---------------------------------------------------------------------------
 
 const config = {
   env: process.env.NODE_ENV || 'development',
