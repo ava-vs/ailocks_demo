@@ -6,7 +6,7 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 const config = {
   env: process.env.NODE_ENV || 'development',
-  port: parseInt(process.env.PORT || '3001', 10),
+  port: process.env.PORT || 3001,
   
   jwt: {
     secret: process.env.JWT_SECRET || 'your-strong-secret-key-for-dev',
@@ -38,8 +38,8 @@ const config = {
   llm: {
     defaultProvider: process.env.DEFAULT_LLM_PROVIDER || 'openrouter',
     enableStreaming: process.env.ENABLE_STREAMING === 'true',
-    maxTokens: parseInt(process.env.MAX_TOKENS || '1000', 10),
-    temperature: parseFloat(process.env.LLM_TEMPERATURE || '0.7'),
+    maxTokens: process.env.MAX_TOKENS || '1000',
+    temperature: process.env.LLM_TEMPERATURE || '0.7',
     models: {
       researcher: process.env.LLM_MODEL_RESEARCHER || 'deepseek/deepseek-r1-0528:free',
       creator: process.env.LLM_MODEL_CREATOR || 'deepseek/deepseek-r1-0528-qwen3-8b:free',
@@ -71,20 +71,23 @@ export function validateEnvironment() {
   }
 
   // Validate PORT is a valid number
-  if (isNaN(config.port) || config.port < 1 || config.port > 65535) {
+  const portNum = Number(config.port);
+  if (isNaN(portNum) || portNum < 1 || portNum > 65535) {
     console.error('❌ PORT must be a valid number between 1 and 65535');
     console.error(`   Current value: ${process.env.PORT}`);
     process.exit(1);
   }
 
   // Validate LLM configuration
-  if (isNaN(config.llm.maxTokens) || config.llm.maxTokens < 1) {
+  const maxTokens = Number(config.llm.maxTokens);
+  if (isNaN(maxTokens) || maxTokens < 1) {
     console.error('❌ MAX_TOKENS must be a valid positive number');
     console.error(`   Current value: ${process.env.MAX_TOKENS}`);
     process.exit(1);
   }
 
-  if (isNaN(config.llm.temperature) || config.llm.temperature < 0 || config.llm.temperature > 2) {
+  const temperature = Number(config.llm.temperature);
+  if (isNaN(temperature) || temperature < 0 || temperature > 2) {
     console.error('❌ LLM_TEMPERATURE must be a number between 0 and 2');
     console.error(`   Current value: ${process.env.LLM_TEMPERATURE}`);
     process.exit(1);
