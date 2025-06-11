@@ -1,0 +1,25 @@
+# Main build settings
+[build]
+  command = "npm run build:full"
+  publish = "frontend/dist"
+  functions = "netlify/functions"
+
+# Development server settings
+[dev]
+  # Command to start the frontend dev server (Vite)
+  command = "npm run dev --workspace=frontend"
+  # Port that the frontend dev server will run on
+  targetPort = 5173
+  # The directory to publish, same as in [build]
+  publish = "frontend/dist"
+  # Tell Netlify to handle functions from this directory
+  functions = "netlify/functions"
+  # Auto-detect that we're using Vite
+  framework = "vite"
+
+# Redirects and rewrites
+[[redirects]]
+  # Proxy all API calls to our serverless function
+  from = "/api/*"
+  to = "/.netlify/functions/api/:splat"
+  status = 200 

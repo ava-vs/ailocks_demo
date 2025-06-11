@@ -1,12 +1,10 @@
 import React from 'react';
 import * as LucideIcons from 'lucide-react';
 import { useAilockStore } from '../../store/ailockStore';
-import { useSocket } from '../../hooks/useSocket';
 
 export const ContextActions: React.FC = React.memo(() => {
   const contextActions = useAilockStore(state => state.contextActions);
   const currentMode = useAilockStore(state => state.currentMode);
-  const { executeAction } = useSocket();
 
   if (contextActions.length === 0) return null;
 
@@ -19,9 +17,19 @@ export const ContextActions: React.FC = React.memo(() => {
     }
   };
 
-  const handleActionClick = (action: any) => {
-    // Execute action via socket
-    executeAction(action.id, action.parameters || {});
+  const executeAction = async (actionId: string, parameters: any = {}) => {
+    try {
+      await fetch(`/api/actions/execute/${actionId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('accessToken') || ''}`
+        },
+        body: JSON.stringify({ parameters })
+      });
+    } catch (error) {
+      console.error('Failed to execute action', error);
+    }
   };
 
   return (
@@ -39,7 +47,7 @@ export const ContextActions: React.FC = React.memo(() => {
           return (
             <button
               key={action.id}
-              onClick={() => handleActionClick(action)}
+              onClick={() => executeAction((action as any).id, (action as any).parameters || {})}
               className={`
                 flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium
                 bg-gradient-to-r ${getModeColor(currentMode)} text-white

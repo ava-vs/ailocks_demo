@@ -2,11 +2,9 @@
   "name": "ailocks-backend",
   "version": "1.0.0",
   "description": "Ailocks AI2AI Network Backend",
-  "main": "dist/server.js",
+  "main": "dist/app.js",
   "scripts": {
-    "dev": "dotenv -e ../.env -- tsx watch src/server.ts",
     "build": "tsc",
-    "start": "node dist/server.js",
     "db:generate": "dotenv -e ../.env -- drizzle-kit generate",
     "db:migrate": "dotenv -e ../.env -- drizzle-kit migrate",
     "db:push": "dotenv -e ../.env -- drizzle-kit push",
@@ -27,7 +25,7 @@
     "node-fetch": "^3.3.2",
     "openai": "^5.2.0",
     "pg": "^8.11.5",
-    "socket.io": "^4.7.4",
+    "serverless-http": "^3.2.0",
     "uuid": "^9.0.1"
   },
   "devDependencies": {
@@ -39,7 +37,7 @@
     "@types/node-fetch": "^3.0.1",
     "@types/pg": "^8.11.6",
     "@types/uuid": "^9.0.8",
-    "drizzle-kit": "1.0.0-beta.1-c0277c0",
+    "drizzle-kit": "^0.18.1",
     "tsx": "^4.6.2",
     "typescript": "^5.3.3"
   }

@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Send, Paperclip, Mic, MicOff } from 'lucide-react';
 import { useAilockStore } from '../../store/ailockStore';
 import { useAuthStore } from '../../store/authStore';
-import { useSocket } from '../../hooks/useSocket';
+import { useChatSSE } from '../../hooks/useChatSSE';
 import { Message } from '../../types';
 import { ChatMessage } from './ChatMessage';
 import { TypingIndicator } from './TypingIndicator';
@@ -15,7 +15,7 @@ export const ChatInterface: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { messages, isTyping, streamingMessage, currentMode } = useAilockStore();
   const { user } = useAuthStore();
-  const { sendMessage, sendTyping } = useSocket();
+  const { sendMessage, sendTyping } = useChatSSE();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });

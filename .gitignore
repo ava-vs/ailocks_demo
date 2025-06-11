@@ -133,3 +133,6 @@ bower_components
 # Lock files (keep only one)
 package-lock.json
 yarn.lock
+
+# Local Netlify folder
+.netlify
