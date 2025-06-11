@@ -317,7 +317,7 @@ async function startServer() {
       console.error('❌ Database connection failed:', dbError);
       throw dbError;
     }
-    
+    console.log('Checking API connection...');
     server.listen(PORT, () => {
       console.log(`🚀 Ailocks backend server running on port ${PORT}`);
       console.log('📡 Socket.io server ready for authenticated connections');
