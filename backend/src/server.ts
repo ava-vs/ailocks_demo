@@ -310,8 +310,13 @@ async function startServer() {
     
     // Test database connection - REQUIRED
     console.log('🗄️  Testing database connection...');
-    await db.execute('SELECT 1');
-    console.log('✅ Database connection successful!');
+    try {
+      const result = await db.execute('SELECT 1 as test');
+      console.log('✅ Database connection successful!');
+    } catch (dbError) {
+      console.error('❌ Database connection failed:', dbError);
+      throw dbError;
+    }
     
     server.listen(PORT, () => {
       console.log(`🚀 Ailocks backend server running on port ${PORT}`);
