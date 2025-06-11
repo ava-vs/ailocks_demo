@@ -41,7 +41,16 @@ const getApiBaseUrl = (): string => {
     return import.meta.env.VITE_API_URL;
   }
   
-  // Fallback to localhost for development
+  // Use the same protocol as the current page to avoid mixed content issues
+  const protocol = window.location.protocol;
+  const hostname = window.location.hostname;
+  
+  // For development, use the same protocol as the frontend
+  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    return `${protocol}//${hostname}:3001/api`;
+  }
+  
+  // Fallback to HTTP for localhost
   return 'http://localhost:3001/api';
 };
 
@@ -71,6 +80,8 @@ export const useAuthStore = create<AuthStore>()(
               'Content-Type': 'application/json',
             },
             body: JSON.stringify(credentials),
+            // Add credentials for CORS if needed
+            credentials: 'include',
           });
 
           if (!response.ok) {
@@ -90,17 +101,24 @@ export const useAuthStore = create<AuthStore>()(
           });
         } catch (error) {
           console.error('Login error:', error);
-          const errorMessage = error instanceof Error ? error.message : 'Login failed';
+          let errorMessage = 'Login failed';
           
-          // Provide more helpful error messages
-          let userFriendlyError = errorMessage;
-          if (errorMessage.includes('Failed to fetch') || errorMessage.includes('Network error')) {
-            userFriendlyError = 'Unable to connect to server. Please check if the backend is running on http://localhost:3001';
+          if (error instanceof Error) {
+            if (error.message.includes('Failed to fetch') || error.name === 'TypeError') {
+              // Check if it's a mixed content issue
+              if (window.location.protocol === 'https:' && API_BASE_URL.startsWith('http:')) {
+                errorMessage = 'Mixed content error: Please access the application using HTTP (http://localhost:5173) instead of HTTPS to connect to the backend server.';
+              } else {
+                errorMessage = 'Unable to connect to the backend server. Please ensure the backend is running on http://localhost:3001 and try again.';
+              }
+            } else {
+              errorMessage = error.message;
+            }
           }
           
           set({
             isLoading: false,
-            error: userFriendlyError,
+            error: errorMessage,
           });
           throw error;
         }
@@ -118,6 +136,8 @@ export const useAuthStore = create<AuthStore>()(
               'Content-Type': 'application/json',
             },
             body: JSON.stringify(userData),
+            // Add credentials for CORS if needed
+            credentials: 'include',
           });
 
           if (!response.ok) {
@@ -137,17 +157,24 @@ export const useAuthStore = create<AuthStore>()(
           });
         } catch (error) {
           console.error('Registration error:', error);
-          const errorMessage = error instanceof Error ? error.message : 'Registration failed';
+          let errorMessage = 'Registration failed';
           
-          // Provide more helpful error messages
-          let userFriendlyError = errorMessage;
-          if (errorMessage.includes('Failed to fetch') || errorMessage.includes('Network error')) {
-            userFriendlyError = 'Unable to connect to server. Please check if the backend is running on http://localhost:3001';
+          if (error instanceof Error) {
+            if (error.message.includes('Failed to fetch') || error.name === 'TypeError') {
+              // Check if it's a mixed content issue
+              if (window.location.protocol === 'https:' && API_BASE_URL.startsWith('http:')) {
+                errorMessage = 'Mixed content error: Please access the application using HTTP (http://localhost:5173) instead of HTTPS to connect to the backend server.';
+              } else {
+                errorMessage = 'Unable to connect to the backend server. Please ensure the backend is running on http://localhost:3001 and try again.';
+              }
+            } else {
+              errorMessage = error.message;
+            }
           }
           
           set({
             isLoading: false,
-            error: userFriendlyError,
+            error: errorMessage,
           });
           throw error;
         }
@@ -187,6 +214,7 @@ export const useAuthStore = create<AuthStore>()(
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({ refreshToken }),
+            credentials: 'include',
           });
 
           if (!response.ok) {
