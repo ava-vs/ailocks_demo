@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { Toaster } from 'react-hot-toast';
 import { Header } from './components/layout/Header';
 import { LoginPage } from './components/auth/LoginPage';
